@@ -22,6 +22,9 @@ for col in ['AreaSqKM', 'LENGTHKM', 'ArbolateSu','MAXELEVRAW', 'MINELEVRAW']:
 # if slope is greater than 1, set to NaN
 flowlines['SLOPE'].where(flowlines['SLOPE'] < 1.00, np.nan, inplace=True)
 
+# if stream order is < 1, set to NaN
+flowlines['StreamOrde'].where(flowlines['StreamOrde'] > 0, np.nan, inplace=True)
+
 # convert units
 flowlines['MAXELEVSMO'] = flowlines['MAXELEVSMO'] / 100 # cm to m
 flowlines['MINELEVSMO'] = flowlines['MINELEVSMO'] / 100 # cm to m
