@@ -1,22 +1,17 @@
 # download flowlines from the National Hydrography Dataset
 # use NHDPlus V2 (medium resolution)
 
-# parameters:
-#   region: region of interest
-#   output: output file name
+import glob
 
-from pynhd import NHD
 import geopandas as gpd
+import pandas as pd
+from pynhd import NHD
 
-region = '1806'
-output = f'../data/{region}_flowlines.geojson'
+output = f'../data/flowlines_all.geojson'
+subregions = gpd.read_file('../data/subregions.geojson')
 
-regions = gpd.read_file('../data/subregions.geojson')
-region = regions[regions['huc4'] == region].geometry.iloc[0].bounds # sometimes the region is a multipolygon, so we need to get the bounds
-
-# confirm that filtering before is same as filtering after,
-# wouldn't want to only get flowlines that have values for all fields for example
 fields = [
+    'COMID',
     'StreamOrde',
     'StartFlag',
     'TerminalFl',
@@ -24,16 +19,29 @@ fields = [
     'LENGTHKM',
     'ArbolateSu',
     'SLOPE',
-    'MAXELEVRAW',
-    'MINELEVRAW',
+    'MAXELEVSMO',
+    'MINELEVSMO',
     'QA_MA',
     'VA_MA',
     'QA_01',
     'VA_01']
 
-# get flowlines
 nhd = NHD('flowline_mr', outfields = fields)
-flowlines = nhd.bygeom(region)
 
-# save flowlines
+flowlines_by_region = []
+for i,row in subregions[['huc4', 'geometry']].iterrows():
+    print(f"getting flowlines for {row['huc4']}")
+    aoi = row['geometry']
+
+    if aoi.geom_type == 'MultiPolygon':
+        aoi = aoi.bounds
+    
+    flowlines = nhd.bygeom(aoi)
+    flowlines['huc4'] = row['huc4']
+    flowlines_by_region.append(flowlines)
+
+flowlines = gpd.GeoDataFrame(pd.concat(
+    flowlines_by_region, ignore_index=True), crs=flowlines_by_region[0].crs)
 flowlines.to_file(output, driver='GeoJSON')
+
+

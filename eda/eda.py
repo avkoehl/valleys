@@ -1,23 +1,43 @@
 import geopandas as gpd
-import seaborn as sns
 import matplotlib.pyplot as plt
+import numpy as np
+import seaborn as sns
 
-flowlines = gpd.read_file('../data/1806_flowlines.geojson')
+flowlines = gpd.read_file('../data/flowlines_all.geojson')
 
 cat = ['StreamOrde', 'StartFlag', 'TerminalFl']
 num = ['AreaSqKM', 'LENGTHKM', 'ArbolateSu', 'SLOPE', 'MAXELEVRAW', 
        'MINELEVRAW', 'QA_MA', 'VA_MA', 'QA_01', 'VA_01']
 
-# maxelev and minelev are in cm
-# qa_ma in cfs 
-# va_ma in fps 
-# qa_01 in cfs
-# va_01 in fps
+# Data Cleaning ----------------------------------------------------------------
+# convert all NHD encoded missing values to NaN
+flowlines = flowlines.replace(to_replace=[-9999.00, -9998.00], value=np.nan)
 
+for col in ['QA_MA', 'VA_MA', 'QA_01', 'VA_01']:
+    flowlines[col] = flowlines[col].replace(to_replace=0.00, value=np.nan)
 
-# need to clean the data
-# make sure the data types are correct
-# make sure the data is in the correct units
-# round to 2 decimal places
-# figure out values to map to NaN (e.g -9999.00, -9988.00, 0.00)
+for col in ['AreaSqKM', 'LENGTHKM', 'ArbolateSu','MAXELEVRAW', 'MINELEVRAW']:
+    flowlines[col] = flowlines[col].replace(to_replace=0.00, value=np.nan)
+
+# if slope is greater than 1, set to NaN
+flowlines['SLOPE'].where(flowlines['SLOPE'] < 1.00, np.nan, inplace=True)
+
+# convert units
+flowlines['MAXELEVSMO'] = flowlines['MAXELEVSMO'] / 100 # cm to m
+flowlines['MINELEVSMO'] = flowlines['MINELEVSMO'] / 100 # cm to m
+
+# Data Exploration -------------------------------------------------------------
+# get counts of missing values for each column
+(flowlines.isna().sum() / len(flowlines) * 100).round()
+
+# count plots of categorical variables X SubRegion
+fig, ax = plt.subplots(1,3, figsize=(10, 10))
+for i,col in enumerate(flowlines[cat]):
+    sns.countplot(x=col, data=flowlines, ax=ax[i])
+
+# histogram of numerical variables
+
+# pairplot of numerical variables
+
+# boxplots of numerical variables X categorical variables
 
