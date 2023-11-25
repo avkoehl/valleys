@@ -1,6 +1,7 @@
 # Project Directory Structure
 data/
 raw_data/
+toy_data/
 outputs/
 *.pdf
 cache/
