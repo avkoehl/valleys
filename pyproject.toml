@@ -28,7 +28,7 @@ jupyter = "^1.0.0"
 jupyter-contrib-nbextensions = "^0.7.0"
 gdal = "3.7.3"
 localtileserver = "^0.7.2"
-openexr = "^1.3.9"
+#openexr = "^1.3.9"
 numba = "^0.58.1"
 pysheds = "^0.3.5"
 
