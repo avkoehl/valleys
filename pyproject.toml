@@ -31,6 +31,8 @@ localtileserver = "^0.7.2"
 #openexr = "^1.3.9"
 numba = "^0.58.1"
 pysheds = "^0.3.5"
+centerline = "^1.0.1"
+label-centerlines = {git = "git@github.com:ungarj/label_centerlines.git"}
 
 [tool.poetry.group.dev.dependencies]
 ipython = "^8.15.0"
