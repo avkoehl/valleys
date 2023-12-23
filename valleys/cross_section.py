@@ -118,9 +118,8 @@ def _centerline(hand, linestring, contour_levels=[0, 5, 10, 100, 150]):
     This polygon is extracted from the contour level of the DEM
     using matplotlib
     """
-    fig, ax = plt.subplots(1, 1, figsize=(10, 6))
     extent = _get_extent(hand)
-    cs = ax.contourf(hand, levels=contour_levels, colors='black', 
+    cs = plt.contourf(hand, levels=contour_levels, colors='black', 
                     extent=extent, origin='upper')
 
     # get polygon
