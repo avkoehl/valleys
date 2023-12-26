@@ -42,7 +42,7 @@ def wbt_profile_curvature(wbt, dem_file, ofile, smooth=False, sigma=3):
         return ofile
 
     wbt.profile_curvature(dem_file, ofile)
-    return ofile
+    return os.path.join(wbt.work_dir, ofile)
 
 def get_catchment_data(wbt, dem_file, subbasin_file, streams_file, d8_pntr_file, basin_id):
 
