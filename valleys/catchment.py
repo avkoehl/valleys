@@ -54,6 +54,6 @@ def get_catchment_data(wbt, dem_file, subbasin_file, streams_file, d8_pntr_file,
     hand = wbt_hand(wbt, cdf, csf, f"{basin_id}_hand.tif")
     curvature = wbt_profile_curvature(wbt, cdf, f"{basin_id}_profile_curvature.tif")
 
-    return {"hand": hand, "streamline": "profile_curvature": curvature, 
-            streamline, "basin_id": basin_id, "dem": cdf, "streams": csf, 
+    return {"hand": hand, "streamline": streamline, "profile_curvature": curvature, 
+            "basin_id": basin_id, "dem": cdf, "streams": csf, 
             "d8_pntr": cpf}
