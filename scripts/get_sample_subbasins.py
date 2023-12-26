@@ -1,10 +1,20 @@
+import glob
+import os
+import shutil
+
 import py3dep
+import numpy as np
+import pandas as pd
 import geopandas as gpd
 from pygeohydro import WBD
 import rioxarray
 
-odir =  "../data/sample_subbasins/"
-catchments_dir = "../data/sample_subbasins/catchment/"
+from valleys.catchment import get_catchment_data
+from valleys.subbasins import delineate_streams
+from valleys.subbasins import delineate_subbasins
+from valleys.utils import setup_wbt
+
+
 subbasins_dir = "../data/sample_subbasins/subbasin/"
 huc12_dir = "../data/sample_subbasins/huc_12/"
 
@@ -30,8 +40,38 @@ for index,boundary in boundaries.iterrows():
 
 boundaries.to_file(f"{huc12_dir}boundaries.geojson", driver="GeoJSON")
 
+# setup wbt
+wbt = setup_wbt(whitebox_dir="~/opt/WBT/", working_dir="../data/wb_outputs/")
+
 # ----- save into subbasins_dir
 # create subbasin raster
+# iterate through the dems
+records = [] 
+for dem_file in glob.glob(f"{huc12_dir}*_dem_10m.tif"):
+    print(f"Creating subbasin raster for {dem_file}")
 
-# ----- save into catchments_dir
-# for each catchment save the data
+    # delineate streams
+    streams_file = delineate_streams(wbt, os.path.abspath(dem_file), threshold=30000)
+
+    # delineate subbasins
+    subbasins_info = delineate_subbasins(wbt, os.path.abspath(dem_file), streams_file)
+    # keys: filled_dem, d8_pntr, subbasins, streams
+
+    # move files to subbasins_dir for that huc12
+    # create dir for that huc12
+    huc12 = dem_file.split("/")[-1].split("_")[0]
+    if os.path.exists(f"{subbasins_dir}{huc12}"):
+        shutil.rmtree(f"{subbasins_dir}{huc12}")
+    os.mkdir(f"{subbasins_dir}{huc12}")
+    # move files
+    for key in subbasins_info.keys():
+        os.rename(subbasins_info[key], f"{subbasins_dir}{huc12}/{huc12}_{key}.tif")
+        subbasins_info[key] = f"{subbasins_dir}{huc12}/{huc12}_{key}.tif"
+        records.append({"huc12": huc12, "key": key, "path": subbasins_info[key]})
+
+df = pd.DataFrame.from_records(records)
+df.columns = ["huc12", "raster_name", "path"]
+df["path"] = df["path"].apply(lambda x: os.path.abspath(x))
+
+# save df
+df.to_csv(f"{subbasins_dir}subbasins.csv", index=False)
