@@ -32,6 +32,18 @@ def subset_raster(raster_file, subbasin_file, basin_id, output_file):
     raster.rio.to_raster(output_file)
     return output_file
 
+def wbt_profile_curvature(wbt, dem_file, ofile, smooth=False, sigma=3):
+    # sigma is for gaussian filter
+    if smooth:
+        temp_file = os.path.join(wbt.work_dir, "temp.tif")
+        wbt.gaussian_filter(dem_file, temp_file, sigma)
+        wbt.profile_curvature(temp_file, ofile)
+        os.remove(temp_file)
+        return ofile
+
+    wbt.profile_curvature(dem_file, ofile)
+    return ofile
+
 def get_catchment_data(wbt, dem_file, subbasin_file, streams_file, d8_pntr_file, basin_id):
 
     cdf = subset_raster(dem_file, subbasin_file, basin_id, os.path.join(wbt.work_dir, f"{basin_id}_dem.tif"))
@@ -40,4 +52,8 @@ def get_catchment_data(wbt, dem_file, subbasin_file, streams_file, d8_pntr_file,
 
     streamline = wbt_vectorize_stream(wbt, csf, cpf, f"{basin_id}_streamline.shp")
     hand = wbt_hand(wbt, cdf, csf, f"{basin_id}_hand.tif")
-    return {"hand": hand, "streamline": streamline, "basin_id": basin_id, "dem": cdf, "streams": csf, "d8_pntr": cpf}
+    curvature = wbt_profile_curvature(wbt, cdf, f"{basin_id}_profile_curvature.tif")
+
+    return {"hand": hand, "streamline": "profile_curvature": curvature, 
+            streamline, "basin_id": basin_id, "dem": cdf, "streams": csf, 
+            "d8_pntr": cpf}
