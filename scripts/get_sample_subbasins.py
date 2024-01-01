@@ -51,7 +51,7 @@ for dem_file in glob.glob(f"{huc12_dir}*_dem_10m.tif"):
     print(f"Creating subbasin raster for {dem_file}")
 
     # delineate streams
-    streams_file = delineate_streams(wbt, os.path.abspath(dem_file), threshold=30000)
+    streams_file = delineate_streams(wbt, os.path.abspath(dem_file), threshold=20000)
 
     # delineate subbasins
     subbasins_info = delineate_subbasins(wbt, os.path.abspath(dem_file), streams_file)

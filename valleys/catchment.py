@@ -34,7 +34,7 @@ def subset_raster(raster_file, subbasin_file, basin_id, output_file):
     raster = raster.dropna(dim="x", how="all")
     raster = raster.dropna(dim="y", how="all")
     raster.rio.to_raster(output_file)
-    return os.path.join(wbt.work_dir, output_file)
+    return output_file
 
 def gaussian_filter(wbt, dem_file, ofile, sigma=3):
     wbt.gaussian_filter(dem_file, ofile, sigma)
