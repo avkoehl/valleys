@@ -16,7 +16,7 @@ import rioxarray
 import geopandas as gpd
 
 def wbt_fill_depressions(wbt, dem_file, ofile):
-    wbt.fill_depressions(dem_file, ofile)
+    wbt.fill_depressions(dem_file, fix_flats=True, ofile)
     return os.path.join(wbt.work_dir, ofile)
 
 def wbt_vectorize_stream(wbt, stream_raster_file, d8_pntr_file, ofile):
@@ -36,9 +36,13 @@ def subset_raster(raster_file, subbasin_file, basin_id, output_file):
     raster.rio.to_raster(output_file)
     return output_file
 
-def gaussian_filter(wbt, dem_file, ofile, sigma=3):
+def wbt_slope(wbt, dem_file, ofile):
+    wbt.slope(dem_file, ofile)
+    return os.path.join(wbt.work_dir, ofile)
+
+def wbt_gaussian_filter(wbt, dem_file, ofile, sigma=3):
     wbt.gaussian_filter(dem_file, ofile, sigma)
-    return os.path.join(wbt.work_dir, output_file)
+    return os.path.join(wbt.work_dir, ofile)
 
 def wbt_profile_curvature(wbt, dem_file, ofile):
     wbt.profile_curvature(dem_file, ofile)
