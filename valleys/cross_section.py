@@ -1,92 +1,57 @@
 """
 Code for methods that depend on cross section analysis
-Methods that use regions/buffers/contours are in: region.py
 
-Methods:
-    - Plotting
-        - plot_cross_section_profile     ✓
-        - map_elevation_contours         ✓
-        - map_cross_sections             ✓
-
-    - Cross Section
-        - preprocess_channel             ✓
-        - get_cross_section_points       ✓
-
-
+1. get stream linestring
+2. simplify stream linestring
+3. get points on simplified stream linestring
+4. Foreach point get points on either side of the stream linestring
+    df: cross_section_id, alpha, point
+5. for those points get elevation, slope, curvature
+6. rezero alphas so that the lowest point (should be close to 0 - where the original stream is intersected is at 0)
+5. save dataframe  cross_section_id, corrected_alpha, point, elevation, slope, curvature
 """
+
+import os
+
 from label_centerlines import get_centerline
 import numpy as np
 import pandas as pd
 import geopandas as gpd
 import matplotlib.pyplot as plt
 import shapely
+from skimage import morphology
+import rasterio
 from shapely.geometry import LineString, Point, Polygon
+import xarray as xr
 import rioxarray
 import xrspatial
 
-# ---------------- PLOTTING ---------------- #
-def plot_cross_section_profile(points_df, ax=None):
-    """ Plot Cross Section Profile """
-    if ax is None:
-        fig, ax = plt.subplots(1, 1, figsize=(10, 6))
+def vectorize_stream_from_hillslope_raster(wbt, hillslope_raster):
+    """ hillslope has one stream """
+    if isinstance(hillslope_raster, str):
+        hillslope_raster = rioxarray.open_rasterio(hillslope_raster).squeeze()
 
-    df = points_df.copy()
-    df = df.loc[np.isfinite(df['elevation'])]
-    ax.scatter(df['alpha'], df['elevation'])
-    ax.scatter(df['alpha'], df['slope'])
-    return ax
+    binary = (hillslope_raster == 0).astype(int)
+    thinned = morphology.thin(binary)
+    thinned = thinned.astype(int)
 
-def _generate_cross_section_lines(points_df):
-    """ Generate Cross Section Lines """
-    lines = []
-    for index in points_df['cross_section'].unique():
-        df = points_df.loc[points_df['cross_section'] == index]
-        df = df.loc[np.isfinite(df['elevation'])]
-        min_alpha_index = np.argmin(df['alpha'])
-        max_alpha_index = np.argmax(df['alpha'])
-        start = df['point'].iloc[min_alpha_index]
-        end = df['point'].iloc[max_alpha_index]
-        line = LineString([start, end])
-        lines.append(line)
-    lines = gpd.GeoDataFrame(geometry=lines)
-    return lines
+    with rasterio.open('temp.tif', 'w', driver='GTiff', height = thinned.shape[0],
+                       width = thinned.shape[1], count=1, dtype=str(thinned.dtype),
+                       crs=hillslope_raster.rio.crs, transform=hillslope_raster.rio.transform()) as dst:
+        dst.write(thinned, 1)
 
-def _get_extent(raster):
-    # need tuple of (left, right, bottom, top)
-    # raster bounds is in format (left, bottom, right, top)
-    bounds = raster.rio.bounds()
-    return (bounds[0], bounds[2], bounds[1], bounds[3])
+    wbt.raster_to_vector_lines(os.path.abspath('temp.tif'), 'temp.shp')
+    stream = gpd.read_file(os.path.join(wbt.work_dir, 'temp.shp'), crs=hillslope_raster.rio.crs)
 
-def map_elevation_contours(dem, ax=None, levels=20):
-    """ Plot DEM, usually HAND with Contours on Top """
-    if ax is None:
-        fig, ax = plt.subplots(1, 1, figsize=(10, 6))
+    os.remove('temp.tif')
+    return stream.iloc[0].geometry
 
-    cs = ax.contourf(hand, cmap='terrain', levels=levels,
-                     extent=_get_extent(hand), origin='upper')
-    ax.clabel(cs, inline=True, fontsize=10)
-    return ax
-
-
-def map_cross_sections(points_df, hand, linestring, ax=None):
-    """ Plot DEM with Cross Sections on Top """
-    if ax is None:
-        fig, ax = plt.subplots(1, 1, figsize=(10, 6))
-
-    cs = ax.contourf(hand, cmap='terrain', levels=20,
-                     extent=_get_extent(hand), origin='upper')
-    ax.clabel(cs, inline=True, fontsize=10)
-
-    lines = _generate_cross_section_lines(points_df)
-    lines.plot(ax=ax, color='orange')
-
-    if not isinstance(linestring, gpd.GeoDataFrame):
-        linestring = gpd.GeoDataFrame(geometry=[linestring])
-    linestring.plot(ax=ax, color='red')
-
-    return ax
-
-# ---------------- CROSS SECTION ---------------- #
+def rioxarray_sample_points(raster, points, method='nearest'):
+    """ Sample points from raster using rioxarray """
+    xs = xr.DataArray(points.geometry.x.values, dims='z')
+    ys = xr.DataArray(points.geometry.y.values, dims='z')
+    values = raster.sel(x=xs, y=ys, method=method).values
+    return values
 
 def preprocess_channel(linestring, method="centerline", threshold=None, 
                        hand=None, contour_levels=None):
@@ -138,33 +103,54 @@ def _centerline(hand, linestring, contour_levels=[0, 5, 10, 100, 150]):
 
     return centerline
 
-def get_cross_section_points(linestring, hand, slope, xs_spacing=5, 
-                             xs_width=100, xs_point_spacing=10):
+def _get_points_on_linestring(linestring, spacing):
+    """ Get Points on Linestring """
+    points = []
+    for i in range(0, int(linestring.length), spacing):
+        point = linestring.interpolate(i)
+        points.append(point)
+    return points
+
+def get_cross_section_points(linestring, xs_spacing=5, 
+                             xs_width=100, xs_point_spacing=10, crs=3310):
     """ Get Cross Section Points """
 
     # get points on the linestring
-    points = []
-    for i in range(0, int(linestring.length), xs_spacing):
-        point = linestring.interpolate(i)
-        points.append(point)
+    points = _get_points_on_linestring(linestring, xs_spacing)
+    
+    alphas = list(range(-xs_width, xs_width+xs_point_spacing, xs_point_spacing))
 
     # for each point sample points on either side of the linestring
     dfs = []
     for i,point in enumerate(points):
-        res = {}
-        alphas, elevations, points = _sample_points(point, linestring, xs_width, xs_point_spacing, hand)
-        _, slopes, _ = _sample_points(point, linestring, xs_width, xs_point_spacing, slope)
-        res['alpha'] = alphas
-        res['elevation'] = elevations
-        res['slope'] = slopes
-        res['point'] = points
-        res['cross_section'] = i
-        df = pd.DataFrame(res)
+        A, B = _get_nearest_vertices(point, linestring)
+        df = pd.DataFrame(
+                {'alpha': alphas,
+                 'point': [_sample_point_on_perpendicular_line(point, A, B, alpha) for alpha in alphas],
+                 'cross_section_id': i})
         dfs.append(df)
 
     points_df = pd.concat(dfs)
-
+    points_df = gpd.GeoDataFrame(points_df, geometry='point', crs=crs)
     return points_df
+
+def rezero_alphas(points):
+    # if the stream centerline was smoothed, 
+    # then the starting point (alpha == 0) may not be where the stream was (elevation = 0)
+    # need to find that point, and adjust the alpha values accordingly 
+
+    # could use the streamline and find the nearest point
+    temp = points.copy()
+
+    offsets = {}
+    for ind in temp['cross_section_id'].unique():
+        df = temp.loc[points['cross_section_id'] == ind]
+
+        if df.loc[df['alpha'] == 0]['elevation'].iloc[0] != min(df['elevation']):
+            min_ind = df['elevation'].idxmin()        
+            temp.loc[temp['cross_section_id'] == ind, 'alpha'] = (df['alpha'] - df['alpha'][min_ind])
+
+    return temp
 
 def _get_nearest_vertices(point, linestring):
     line_coords = linestring.coords
@@ -178,13 +164,3 @@ def _sample_point_on_perpendicular_line(point, A, B, alpha):
     x = point.x + alpha * (A.y - B.y) / length
     y = point.y + alpha * (B.x - A.x) / length
     return Point(x, y)
-
-def _sample_points(point, linestring, width, spacing, raster):
-    A,B = _get_nearest_vertices(point, linestring)
-    npoints = width // spacing
-    positive_alphas = [i * spacing for i in range(npoints+1)]
-    negative_alphas = [-i for i in positive_alphas[::-1]]
-    alphas = negative_alphas + positive_alphas
-    points = [_sample_point_on_perpendicular_line(point, A, B, alpha) for alpha in alphas]
-    values = [raster.sel(x=point.x, y=point.y, method='nearest').values.item() for point in points]
-    return (alphas, values, points)
