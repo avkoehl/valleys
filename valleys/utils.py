@@ -31,18 +31,3 @@ def get_extent(raster):
     bounds = raster.rio.bounds()
     return (bounds[0], bounds[2], bounds[1], bounds[3])
 
-def _generate_cross_section_lines(points_df):
-    """ Generate Cross Section Lines """
-    lines = []
-    for index in points_df['cross_section'].unique():
-        df = points_df.loc[points_df['cross_section'] == index]
-        df = df.loc[np.isfinite(df['elevation'])]
-        min_alpha_index = np.argmin(df['alpha'])
-        max_alpha_index = np.argmax(df['alpha'])
-        start = df['point'].iloc[min_alpha_index]
-        end = df['point'].iloc[max_alpha_index]
-        line = LineString([start, end])
-        lines.append(line)
-    lines = gpd.GeoDataFrame(geometry=lines)
-    return lines
-

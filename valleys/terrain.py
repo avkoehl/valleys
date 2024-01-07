@@ -1,63 +1,56 @@
 """
-This module has functions for working with individual catchments. Catchments
-come from a subbasin delineated dem.
-
-# input:
-    # run code in subbasins.py first
-
-    dem: dem raster file
-    streams: stream raster file
-    subbasins: basins raster file
-    d8_pntr: d8 pointer raster file
+Get features for the cells that are then sampled at the cross sections
 """
 import os
 
+import rasterio
 import rioxarray
 import geopandas as gpd
 
-def wbt_fill_depressions(wbt, dem_file, ofile):
-    wbt.fill_depressions(dem_file, fix_flats=True, ofile)
-    return os.path.join(wbt.work_dir, ofile)
 
-def wbt_vectorize_stream(wbt, stream_raster_file, d8_pntr_file, ofile):
-    wbt.raster_streams_to_vector(stream_raster_file, d8_pntr_file, ofile)
-    return os.path.join(wbt.work_dir, ofile)
+def rezero_alphas(points):
+    # if the stream centerline was smoothed, 
+    # then the starting point (alpha == 0) may not be where the stream was (elevation = 0)
+    # need to find that point, and adjust the alpha values accordingly 
 
-def wbt_hand(wbt, dem_raster_file, stream_raster_file, ofile):
-    wbt.elevation_above_stream(dem_raster_file, stream_raster_file, ofile)
-    return os.path.join(wbt.work_dir, ofile)
+    # could use the streamline and find the nearest point
+    temp = points.copy()
 
-def subset_raster(raster_file, subbasin_file, basin_id, output_file):
-    raster = rioxarray.open_rasterio(raster_file)
-    subbasins = rioxarray.open_rasterio(subbasin_file)
-    raster = raster.where(subbasins == basin_id)
-    raster = raster.dropna(dim="x", how="all")
-    raster = raster.dropna(dim="y", how="all")
-    raster.rio.to_raster(output_file)
-    return output_file
+    offsets = {}
+    for ind in temp['cross_section_id'].unique():
+        df = temp.loc[points['cross_section_id'] == ind]
 
-def wbt_slope(wbt, dem_file, ofile):
-    wbt.slope(dem_file, ofile)
-    return os.path.join(wbt.work_dir, ofile)
+        if df.loc[df['alpha'] == 0]['elevation'].iloc[0] != min(df['elevation']):
+            min_ind = df['elevation'].idxmin()        
+            temp.loc[temp['cross_section_id'] == ind, 'alpha'] = (df['alpha'] - df['alpha'][min_ind])
 
-def wbt_gaussian_filter(wbt, dem_file, ofile, sigma=3):
-    wbt.gaussian_filter(dem_file, ofile, sigma)
-    return os.path.join(wbt.work_dir, ofile)
+    return temp
 
-def wbt_profile_curvature(wbt, dem_file, ofile):
-    wbt.profile_curvature(dem_file, ofile)
-    return os.path.join(wbt.work_dir, ofile)
+def rioxarray_sample_points(raster, points, method='nearest'):
+    """ Sample points from raster using rioxarray """
+    xs = xr.DataArray(points.geometry.x.values, dims='z')
+    ys = xr.DataArray(points.geometry.y.values, dims='z')
+    values = raster.sel(x=xs, y=ys, method=method).values
+    return values
 
-def get_catchment_data(wbt, dem_file, subbasin_file, streams_file, d8_pntr_file, basin_id):
+def compute_terrain_features(wbt, dem_raster, sigma=1.5, log=False):
+    # gaussian filter
+    # slope
+    # profile curvature
+    # hand
+    return
 
-    cdf = subset_raster(dem_file, subbasin_file, basin_id, os.path.join(wbt.work_dir, f"{basin_id}_dem.tif"))
-    csf = subset_raster(streams_file, subbasin_file, basin_id, os.path.join(wbt.work_dir, f"{basin_id}_stream.tif"))
-    cpf = subset_raster(d8_pntr_file, subbasin_file, basin_id, os.path.join(wbt.work_dir, f"{basin_id}_d8_pntr.tif"))
+def get_terrain_features(points, dem, slope, curvature, hand, hillshade):
+    # get the terrain features for the points
+    # points should already be in the same crs as the rasters
+    # points should have a 'cross_section_id' column
+    # dem, slope, curvature, hand should be rioxarray objects
 
-    streamline = wbt_vectorize_stream(wbt, csf, cpf, f"{basin_id}_streamline.shp")
-    hand = wbt_hand(wbt, cdf, csf, f"{basin_id}_hand.tif")
-    curvature = wbt_profile_curvature(wbt, cdf, f"{basin_id}_profile_curvature.tif")
+    points['elevation'] = rioxarray_sample_points(dem, points)
+    points['slope'] = rioxarray_sample_points(slope, points)
+    points['curvature'] = rioxarray_sample_points(curvature, points)
+    points['hand'] = rioxarray_sample_points(hand, points)
+    points['hillshade_id'] = rioxarray_sample_points(hillshade, points)
+    points = rezero_alphas(points)
 
-    return {"hand": hand, "streamline": streamline, "profile_curvature": curvature, 
-            "basin_id": basin_id, "dem": cdf, "streams": csf, 
-            "d8_pntr": cpf}
+    return points

@@ -18,21 +18,13 @@ import numpy as np
 import pandas as pd
 import geopandas as gpd
 import matplotlib.pyplot as plt
-import shapely
-from skimage import morphology
-import rasterio
 from shapely.geometry import LineString, Point, Polygon
-import xarray as xr
 import rioxarray
-import xrspatial
 
-def vectorize_stream_from_hillslope_raster(wbt, hillslope_raster):
-    """ hillslope has one stream """
-    if isinstance(hillslope_raster, str):
-        hillslope_raster = rioxarray.open_rasterio(hillslope_raster).squeeze()
 
-    binary = (hillslope_raster == 0).astype(int)
-    thinned = morphology.thin(binary)
+def vectorize_stream(wbt, stream_binary_raster):
+    """ stream raster should contain a single stream """
+    thinned = morphology.thin(stream_binary_raster.data)
     thinned = thinned.astype(int)
 
     with rasterio.open('temp.tif', 'w', driver='GTiff', height = thinned.shape[0],
@@ -41,17 +33,14 @@ def vectorize_stream_from_hillslope_raster(wbt, hillslope_raster):
         dst.write(thinned, 1)
 
     wbt.raster_to_vector_lines(os.path.abspath('temp.tif'), 'temp.shp')
-    stream = gpd.read_file(os.path.join(wbt.work_dir, 'temp.shp'), crs=hillslope_raster.rio.crs)
+    stream = gpd.read_file(os.path.join(wbt.work_dir, 'temp.shp'), crs=stream_binary_raster.rio.crs)
 
     os.remove('temp.tif')
-    return stream.iloc[0].geometry
+    return
 
-def rioxarray_sample_points(raster, points, method='nearest'):
-    """ Sample points from raster using rioxarray """
-    xs = xr.DataArray(points.geometry.x.values, dims='z')
-    ys = xr.DataArray(points.geometry.y.values, dims='z')
-    values = raster.sel(x=xs, y=ys, method=method).values
-    return values
+def generate_cross_section_lines(points):
+    #TODO
+    pass
 
 def preprocess_channel(linestring, method="centerline", threshold=None, 
                        hand=None, contour_levels=None):
@@ -134,23 +123,6 @@ def get_cross_section_points(linestring, xs_spacing=5,
     points_df = gpd.GeoDataFrame(points_df, geometry='point', crs=crs)
     return points_df
 
-def rezero_alphas(points):
-    # if the stream centerline was smoothed, 
-    # then the starting point (alpha == 0) may not be where the stream was (elevation = 0)
-    # need to find that point, and adjust the alpha values accordingly 
-
-    # could use the streamline and find the nearest point
-    temp = points.copy()
-
-    offsets = {}
-    for ind in temp['cross_section_id'].unique():
-        df = temp.loc[points['cross_section_id'] == ind]
-
-        if df.loc[df['alpha'] == 0]['elevation'].iloc[0] != min(df['elevation']):
-            min_ind = df['elevation'].idxmin()        
-            temp.loc[temp['cross_section_id'] == ind, 'alpha'] = (df['alpha'] - df['alpha'][min_ind])
-
-    return temp
 
 def _get_nearest_vertices(point, linestring):
     line_coords = linestring.coords
