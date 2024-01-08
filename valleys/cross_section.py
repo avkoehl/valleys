@@ -21,7 +21,6 @@ import matplotlib.pyplot as plt
 from shapely.geometry import LineString, Point, Polygon
 import rioxarray
 
-
 def vectorize_stream(wbt, stream_binary_raster):
     """ stream raster should contain a single stream """
     thinned = morphology.thin(stream_binary_raster.data)
@@ -36,7 +35,8 @@ def vectorize_stream(wbt, stream_binary_raster):
     stream = gpd.read_file(os.path.join(wbt.work_dir, 'temp.shp'), crs=stream_binary_raster.rio.crs)
 
     os.remove('temp.tif')
-    return
+    return stream
+
 
 def generate_cross_section_lines(points):
     #TODO
