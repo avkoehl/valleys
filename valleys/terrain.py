@@ -25,7 +25,7 @@ def rezero_alphas(points):
         df = temp.loc[points['cross_section_id'] == ind]
 
         if df.loc[df['alpha'] == 0]['elevation'].iloc[0] != min(df['elevation']):
-            min_ind = df['elevation'].idxmin()        
+            min_ind = df['elevation'].idxmin(skipna=True)        
             temp.loc[temp['cross_section_id'] == ind, 'alpha'] = (df['alpha'] - df['alpha'][min_ind])
 
     return temp
