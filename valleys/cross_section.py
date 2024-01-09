@@ -1,14 +1,9 @@
 """
 Code for methods that depend on cross section analysis
 
-1. get stream linestring
-2. simplify stream linestring
-3. get points on simplified stream linestring
-4. Foreach point get points on either side of the stream linestring
-    df: cross_section_id, alpha, point
-5. for those points get elevation, slope, curvature
-6. rezero alphas so that the lowest point (should be close to 0 - where the original stream is intersected is at 0)
-5. save dataframe  cross_section_id, corrected_alpha, point, elevation, slope, curvature
+1. simplify stream linestring
+2. get points on simplified stream linestring
+3. get points on perpendicular lines to the simplified stream linestring
 """
 
 import os
@@ -21,21 +16,6 @@ import matplotlib.pyplot as plt
 from shapely.geometry import LineString, Point, Polygon
 import rioxarray
 
-def vectorize_stream(wbt, stream_binary_raster):
-    """ stream raster should contain a single stream """
-    thinned = morphology.thin(stream_binary_raster.data)
-    thinned = thinned.astype(int)
-
-    with rasterio.open('temp.tif', 'w', driver='GTiff', height = thinned.shape[0],
-                       width = thinned.shape[1], count=1, dtype=str(thinned.dtype),
-                       crs=hillslope_raster.rio.crs, transform=hillslope_raster.rio.transform()) as dst:
-        dst.write(thinned, 1)
-
-    wbt.raster_to_vector_lines(os.path.abspath('temp.tif'), 'temp.shp')
-    stream = gpd.read_file(os.path.join(wbt.work_dir, 'temp.shp'), crs=stream_binary_raster.rio.crs)
-
-    os.remove('temp.tif')
-    return stream
 
 
 def generate_cross_section_lines(points):
