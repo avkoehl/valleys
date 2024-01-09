@@ -43,7 +43,7 @@ for huc12 in huc12s:
     dem.rio.to_raster(f"{huc12_dir}{huc12}_dem_10m.tif")
 
     stream_file = extract_streams(wbt, 
-                        os.path.abspath(f"{huc12_dir}{huc12}_dem_10m.tif"), 
+                        os.path.abspath(f"{huc12_dir}/{huc12}_dem_10m.tif"), 
                                     threshold=20000)
 
     split_into_subbasins(wbt, os.path.abspath(f"{huc12_dir}{huc12}_dem_10m.tif"),
