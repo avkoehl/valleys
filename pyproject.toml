@@ -1,14 +1,12 @@
 [tool.poetry]
 name = "valleys"
-version = "0.1.0"
+version = "0.2.0"
 description = ""
 authors = ["Arthur Koehl <avkoehl@ucdavis.edu>"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
 python = "^3.10"
-pynhd = "^0.15.1"
-pygeohydro = "^0.15.1"
 pandas = "^2.1.0"
 numpy = "1.23.4"
 matplotlib = "^3.7.2"
@@ -16,23 +14,19 @@ seaborn = "^0.12.2"
 geopandas = "^0.13.2"
 ipykernel = "^6.25.2"
 shapely = "^2.0.1"
-py3dep = "^0.15.1"
 xarray-spatial = "^0.3.7"
 plotly-express = "^0.4.1"
 nbformat = "^5.9.2"
-earthpy = "^0.9.4"
 whitebox = "^2.3.1"
-leafmap = "^0.28.0"
-ipyleaflet = "^0.17.4"
 jupyter = "^1.0.0"
 jupyter-contrib-nbextensions = "^0.7.0"
 gdal = "3.7.3"
-localtileserver = "^0.7.2"
-#openexr = "^1.3.9"
-numba = "^0.58.1"
-pysheds = "^0.3.5"
 centerline = "^1.0.1"
 label-centerlines = {git = "git@github.com:ungarj/label_centerlines.git"}
+pygeoutils = {git = "git@github.com:hyriver/pygeoutils.git"}
+pygeohydro = {git = "git@github.com:hyriver/pygeohydro.git"}
+py3dep = {git = "git@github.com:hyriver/py3dep.git"}
+pynhd = {git = "git@github.com:hyriver/pynhd.git"}
 
 [tool.poetry.group.dev.dependencies]
 ipython = "^8.15.0"
