@@ -5,6 +5,9 @@ import geopandas as gpd
 import numpy as np
 import rasterio
 import rioxarray
+from pygeohydro import WBD
+from pynhd import NHD
+import py3dep
 from skimage import morphology
 import whitebox
 
