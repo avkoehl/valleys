@@ -1,0 +1,28 @@
+save dem and nhdhr flowlines for huc12 in toydata
+
+add get_flowlines_and_dem to utils
+
+
+input:
+    flowlines_nhd
+    dem
+    
+    wbt_exe_path
+    wbt_work_dir
+
+
+1. get flowlines and dem for huc12 - save to working dir
+2. get_aligned_streams
+3. compute_terrain_rasters (slope, aspect, curvature, hand, subbasins)
+    - check for dem, streams.tif in working dir
+4. for stream in streams:
+    - get xsections
+    - for xs in xsections:
+	- reset alpha to streamline
+	- get curvature profile
+	- get break points
+	- get top points
+
+    - get HAND threshold value
+    - get polygon for valley boundary using HAND threshold and subbasin
+    - return: top_points, HAND_threshold, valley_boundary
