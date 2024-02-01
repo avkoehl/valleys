@@ -20,7 +20,6 @@ import scipy
 from scipy import signal
 from shapely.geometry import shape, Polygon
 
-
 def get_half_profiles(df, xs_id):
     """ df is the points dataframe """
     df = df.loc[df['cross_section_id'] == xs_id]
