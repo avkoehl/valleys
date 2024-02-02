@@ -6,83 +6,17 @@ Code for methods that depend on cross section analysis
 3. get points on perpendicular lines to the simplified stream linestring
 """
 
-import os
-
-from label_centerlines import get_centerline
 import numpy as np
 import pandas as pd
 import geopandas as gpd
-import matplotlib.pyplot as plt
 from shapely.geometry import LineString, Point, Polygon
 import rioxarray
 
-
-
-def generate_cross_section_lines(points):
-    #TODO
-    pass
-
-def preprocess_channel(linestring, method="centerline", threshold=None, 
-                       hand=None, contour_levels=None):
-    """ Preprocess Channel 
-
-    Its important that the channel meanders are minimized before
-    extracting cross sections so that the cross sections are more
-    likely to be orthogonal to the valley walls.
-
-    Using the minimum_rotated_rectangle method is not ideal because 
-    it will not work well with bends in the river around the hills - i.e
-    the valley itself is sinous.
-
-    """
-
-    if method not in ["centerline", "simplify"]:
-        raise ValueError("Invalid method")
-
-    if method == "centerline":
-        return _centerline(hand, linestring, contour_levels)
-
-    if method == "simplify":
-        return linestring.simplify(threshold)
-
-def _centerline(hand, linestring, contour_levels=[0, 5, 10, 100, 150]):
-    """
-    Get centerline of the polygon representing the channel floodplain
-
-    This polygon is extracted from the contour level of the DEM
-    using matplotlib
-    """
-    extent = _get_extent(hand)
-    cs = plt.contourf(hand, levels=contour_levels, colors='black', 
-                    extent=extent, origin='upper')
-
-    # get polygon
-    polygon = None
-    for collection in cs.collections:
-        if polygon is not None:
-            break
-        for path in collection.get_paths():
-            poly = Polygon(path.vertices)
-            if poly.intersects(linestring):
-                polygon = poly
-                break
-
-    centerline = get_centerline(polygon)
-    # consider extending the centerline to the edges of the polygon
-
-    return centerline
-
-def _get_points_on_linestring(linestring, spacing):
-    """ Get Points on Linestring """
-    points = []
-    for i in range(0, int(linestring.length), spacing):
-        point = linestring.interpolate(i)
-        points.append(point)
-    return points
-
-def get_cross_section_points(linestring, xs_spacing=5, 
+def get_cross_section_points(linestring, simplify=True, tolerance=20, xs_spacing=5, 
                              xs_width=100, xs_point_spacing=10, crs=3310):
-    """ Get Cross Section Points """
+    """ Get Cross Section Points 
+    """
+    linestring = linestring.simplify(tolerance) if simplify else linestring
 
     # get points on the linestring
     points = _get_points_on_linestring(linestring, xs_spacing)
@@ -103,6 +37,16 @@ def get_cross_section_points(linestring, xs_spacing=5,
     points_df = gpd.GeoDataFrame(points_df, geometry='point', crs=crs)
     return points_df
 
+# --- Internal Functions ----------------------------------------------------- #
+def _get_points_on_linestring(linestring, spacing):
+    """ Get Points on Linestring """
+    points = []
+    for i in range(0, int(linestring.length), spacing):
+        point = linestring.interpolate(i)
+        points.append(point)
+    return points
+
+    return points_df
 
 def _get_nearest_vertices(point, linestring):
     line_coords = linestring.coords

@@ -1,95 +1,117 @@
-"""
-Get features for the cells that are then sampled at the cross sections
-"""
 import os
 
-import geopandas as gpd
-import numpy as np
-import rasterio
 import rioxarray
-import xarray as xr
+from shapely.geometry import Point
+from scipy.ndimage import gaussian_filter
+import whitebox
 
-from valleys.utils import get_stream_raster_from_hillslope
+def flow_accumulation_workflow(wbt, dem_file):
+    wbt.flow_accumulation_full_workflow(
+            os.path.abspath(dem_file),
+            'conditioned_dem.tif',
+            'flow_dir.tif', 
+            'flow_accum.tif',
+            out_type = 'cells',
+            log = False,
+            clip = False,
+            esri_pntr = False
+            )
+    return {
+            'conditioned_dem': os.path.join(wbt.work_dir, 'conditioned_dem.tif'),
+            'flow_dir': os.path.join(wbt.work_dir, 'flow_dir.tif'),
+            'flow_accum': os.path.join(wbt.work_dir, 'flow_accum.tif')
+            }
 
+def find_seed_points(nhd_network):
+    # filter flow lines
+    nhd_network = nhd_network.loc[nhd_network['FTYPE'] == 'StreamRiver']
+    nhd_network = nhd_network.loc[~((nhd_network['StartFlag'] == 1) & (nhd_network['LENGTHKM'] < 1))]
+    seed_points = nhd_network.loc[nhd_network['StartFlag'] == 1]['geometry'].apply(lambda x: Point(x.coords[0]))
+    return seed_points
 
-def rezero_alphas(points):
-    # if the stream centerline was smoothed, 
-    # then the starting point (alpha == 0) may not be where the stream was (elevation = 0)
-    # need to find that point, and adjust the alpha values accordingly 
+def align_to_terrain(wbt, nhd_network, flow_acc_file, flow_dir_file):
+    seed_points = find_seed_points(nhd_network)
+    seed_points.to_file(os.path.join(wbt.work_dir, 'seed_points.shp'))
 
-    # could use the streamline and find the nearest point
-    temp = points.copy()
+    wbt.snap_pour_points(
+            'seed_points.shp',
+            flow_acc_file,
+            'snap_points.shp',
+            snap_dist = 50
+            )
 
-    offsets = {}
-    for ind in temp['cross_section_id'].unique():
-        df = temp.loc[points['cross_section_id'] == ind]
+    wbt.trace_downslope_flowpaths(
+            'snap_points.shp',
+            flow_dir_file,
+            'flow_paths.tif'
+            )
 
-        if df.loc[df['alpha'] == 0]['elevation'].iloc[0] != min(df['elevation']):
-            min_ind = df['elevation'].idxmin(skipna=True)        
-            temp.loc[temp['cross_section_id'] == ind, 'alpha'] = (df['alpha'] - df['alpha'][min_ind])
+    wbt.stream_link_identifier(
+            flow_dir_file,
+            'flow_paths.tif',
+            'flow_paths_identified.tif'
+            )
 
-    return temp
+    wbt.raster_streams_to_vector(
+            'flow_paths_identified.tif',
+            flow_dir_file,
+            'flow_paths.shp'
+            )
 
+    return {
+            'streams': os.path.join(wbt.work_dir, 'flow_paths_identified.tif'),
+            'streams_shp': os.path.join(wbt.work_dir, 'flow_paths.shp'),
+            }
 
-def rioxarray_sample_points(raster, points, method='nearest'):
-    """ Sample points from raster using rioxarray """
-    xs = xr.DataArray(points.geometry.x.values, dims='z')
-    ys = xr.DataArray(points.geometry.y.values, dims='z')
-    values = raster.sel(x=xs, y=ys, method=method).values
-    return values
+def segment_subbasins(wbt, streams_file, flow_dir_file):
+    # subbasins
+    wbt.subbasins(
+            d8_pntr = flow_dir_file,
+            streams = streams_file,
+            output= "subbasins.tif",
+            esri_pntr=False, 
+            )
 
-def compute_hand(wbt, dem_raster, hillslope):
-    stream = get_stream_raster_from_hillslope(wbt, hillslope)
-    stream.rio.to_raster(os.path.join(wbt.work_dir, 'stream.tif'))
-    dem_raster.rio.to_raster(os.path.join(wbt.work_dir, 'dem.tif'))
+    # hillslopes
+    wbt.hillslopes(
+            flow_dir_file,
+            streams_file,
+            "hillslopes.tif",
+            esri_pntr=False
+            )
+    return {
+            'subbasins': os.path.join(wbt.work_dir, 'subbasins.tif'),
+            'hillslopes': os.path.join(wbt.work_dir, 'hillslopes.tif')
+            }
 
-    # get stream from hillslope for hand
-    # need stream.tif to be 1 for stream, 0 for not stream
-    # need to fill dem first
-    wbt.fill_depressions('dem.tif', 'filled_dem.tif')
-    wbt.elevation_above_stream('filled_dem.tif', 'stream.tif', 'hand.tif')
-    hand = rioxarray.open_rasterio(os.path.join(wbt.work_dir, 'hand.tif'))
-    hand = hand.squeeze()
-    return hand
+def compute_terrain_rasters(wbt, dem_file, stream_file, flow_dir_file, sigma=1.5):
+    # so that hand doesn't have gaps as occurs with breach depressions least cost
+    wbt.fill_depressions(
+            dem_file, # breached depressions 
+            "filled_dem.tif",
+            fix_flats = True,
+            flat_increment = None,
+            max_depth = None
+            )
 
-def _compute_terrain_features(wbt, dem_raster, hillslope, sigma=1.5, log=False):
-    dem_raster.rio.to_raster(os.path.join(wbt.work_dir, 'dem.tif'))
-    hand = compute_hand(wbt, dem_raster, hillslope)
+    # hand
+    wbt.elevation_above_stream("filled_dem.tif", stream_file, "hand.tif")
 
-    # gaussian filter
-    wbt.gaussian_filter('dem.tif', 'smoothed.tif', sigma)
-    wbt.slope('smoothed.tif', 'slope.tif')
-    wbt.profile_curvature('smoothed.tif', 'curvature.tif')
+    # use gaussian filter to smooth the dem, prefer scipy over wbt
+    # because scipy gaussian has options to maintain the dimensions, 
+    # i.e keep the same size as the input
+    dem = rioxarray.open_rasterio(dem_file)
+    gf = gaussian_filter(dem, sigma=sigma)
+    dem.data = gf
+    dem.rio.to_raster(os.path.join(wbt.work_dir, "dem_gauss.tif"))
 
-    slope = rioxarray.open_rasterio(os.path.join(wbt.work_dir, 'slope.tif'))
-    slope = slope.squeeze()
-    slope = slope.where(slope != -32768)
+    #wbt.gaussian_filter(dem_file, "dem_gauss.tif", sigma=sigma)
+    wbt.slope("dem_gauss.tif", "slope.tif")
+    wbt.profile_curvature("dem_gauss.tif", "profile_curvature.tif")
 
-    curvature = rioxarray.open_rasterio(os.path.join(wbt.work_dir, 'curvature.tif'))
-    curvature = curvature.squeeze()
-    curvature = curvature.where(curvature != -32768)
-    return slope, curvature, hand
-
-def get_terrain_features(wbt, points, dem, hillslope):
-    # get the terrain features for the points
-    # points should already be in the same crs as the rasters
-    # points should have a 'cross_section_id' column
-    # dem, slope, curvature, hand should be rioxarray objects
-
-    slope, curvature, hand = _compute_terrain_features(wbt, dem, hillslope, sigma=1.5, log=False)
-
-    points['elevation'] = rioxarray_sample_points(dem, points)
-    points['slope'] = rioxarray_sample_points(slope, points)
-    points['curvature'] = rioxarray_sample_points(curvature, points)
-    points['hand'] = rioxarray_sample_points(hand, points)
-    points['hillslope_id'] = rioxarray_sample_points(hillslope, points)
-    points = rezero_alphas(points)
-
-    # remove points where any value is nan or -32768
-    points = points.replace(-32768, np.nan)
-    points = points.dropna()
-
-    # add unique id for each point
-    points['point_id'] = np.arange(len(points))
-
-    return points, slope, curvature, hand
+    return {
+            'dem_gauss': os.path.join(wbt.work_dir, 'dem_gauss.tif'),
+            'slope': os.path.join(wbt.work_dir, 'slope.tif'),
+            'curvature': os.path.join(wbt.work_dir, 'profile_curvature.tif'),
+            'hand': os.path.join(wbt.work_dir, 'hand.tif'),
+            }

@@ -19,7 +19,7 @@ from scipy import signal
 import xarray as xr
 
 from valleys.cross_section import get_cross_section_points
-from valleys.fun import compute_terrain_rasters
+from valleys.terrain import compute_terrain_rasters
 
 def rezero_xsection(xs_points):
     # if the stream centerline was smoothed, 
@@ -139,9 +139,8 @@ def polygonize(raster):
     os.remove('temp.tif')
     return polygons
     
-def points_to_polygon(break_points, hand_raster, slope_raster, 
+def points_to_polygon(break_points, threshold, hand_raster, slope_raster, 
                       slope_threshold=.4, buffer=1):
-    threshold = determine_threshold(break_points)
 
     hand = hand.where(hand != -32768)
     values = hand.where(hand < (threshold + buffer))
@@ -169,12 +168,7 @@ def close_holes(poly):
             return Polygon(list(poly.exterior.coords))
         return poly
 
-def delineate_valley(wbt, dem_raster, flowline, stream_raster, hillslope_raster, flow_dir_raster):
-    flowline = flowline.simplify(10)
-    points = get_cross_section_points(flowline, xs_spacing=100, xs_width=200, xs_point_spacing=10)
-
-    points = add_attributes_to_xs(wbt, points, dem_raster, stream_raster, flow_dir_raster)
-
+def get_break_points(points):
     break_points = []
     for xs_id in points['cross_section_id'].unique():
         df = points.loc[points['cross_section_id'] == xs_id]
@@ -192,6 +186,16 @@ def delineate_valley(wbt, dem_raster, flowline, stream_raster, hillslope_raster,
         break_points.append(neg_break_point)
 
     break_points = pd.concat(break_points)
-    valley_polygon = points_to_polygon(points, hillslope)
+    return break_points
+
+def delineate_valley(wbt, dem_raster, flowline, stream_raster, hillslope_raster, flow_dir_raster):
+    flowline = flowline.simplify(10)
+    points = get_cross_section_points(flowline, xs_spacing=100, xs_width=200, xs_point_spacing=10)
+
+    points = add_attributes_to_xs(wbt, points, dem_raster, stream_raster, flow_dir_raster)
+    break_points = get_break_points(points)
+
+    threshold = determine_threshold(break_points, hillslope)
+    valley_polygon = points_to_polygon(points, threshold, hand, slope)
 
     return {'geometry': valley_polygon, 'hand_threshold': threshold}
