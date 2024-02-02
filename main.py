@@ -71,24 +71,33 @@ for row in flowlines.iterrows():
     points = get_cross_section_points(flowline, xs_spacing=200, xs_width=500, xs_point_spacing=10)
     points.index = range(len(points))
 
-    points = add_attributes_to_xs(wbt, points, dem_clipped, flow_dir_clipped, hillslope_clipped)
-    
+    points = add_attributes_to_xs(wbt, points, dem_clipped, stream_clipped, flow_dir_clipped, hillslope_clipped)
+
+    hand = rioxarray.open_rasterio(os.path.join(wbt.work_dir, 'hand.tif'), masked=True).squeeze()
 
    break_points = []
    for xs_id in points['cross_section_id'].unique():
+       print(xs_id)
+
        df = points.loc[points['cross_section_id'] == xs_id]
+       # if xsection is not suitable for valley delineation, skip
+       # keep in mind that points where values are NA were removed
+       # requirements: atleast 5 points on each side of the xsection
+       if len(df.loc[df['alpha'] > 0]) < 5 or len(df.loc[df['alpha'] < 0]) < 5:
+           continue
+
        df = rezero_xsection(df)
 
        # positive break point
        df_pos = df.loc[df['alpha'] >= 0]
-       pos_break_point = find_break_point(df_pos)
+       pos_break_point,_ = find_break_point(df_pos)
 
        # negative break point
        df_neg = df.loc[df['alpha'] <= 0]
-       neg_break_point = find_break_point(df_neg)
+       neg_break_point,_ = find_break_point(df_neg)
+
        break_points.append(pos_break_point)
        break_points.append(neg_break_point)
-       # WRONG, returning index in xs not in points!
        
    break_points = [bp for bp in break_points if bp is not None]
    break_points = points.loc[break_points]

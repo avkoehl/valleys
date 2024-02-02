@@ -2,6 +2,7 @@ import os
 
 import rioxarray
 from shapely.geometry import Point
+from scipy.ndimage import gaussian_filter
 import whitebox
 
 def flow_accumulation_workflow(wbt, dem_file):
@@ -96,7 +97,15 @@ def compute_terrain_rasters(wbt, dem_file, stream_file, flow_dir_file, sigma=1.5
     # hand
     wbt.elevation_above_stream("filled_dem.tif", stream_file, "hand.tif")
 
-    wbt.gaussian_filter(dem_file, "dem_gauss.tif", sigma=sigma)
+    # use gaussian filter to smooth the dem, prefer scipy over wbt
+    # because scipy gaussian has options to maintain the dimensions, 
+    # i.e keep the same size as the input
+    dem = rioxarray.open_rasterio(dem_file)
+    gf = gaussian_filter(dem, sigma=sigma)
+    dem.data = gf
+    dem.rio.to_raster(os.path.join(wbt.work_dir, "dem_gauss.tif"))
+
+    #wbt.gaussian_filter(dem_file, "dem_gauss.tif", sigma=sigma)
     wbt.slope("dem_gauss.tif", "slope.tif")
     wbt.profile_curvature("dem_gauss.tif", "profile_curvature.tif")
 
@@ -106,4 +115,3 @@ def compute_terrain_rasters(wbt, dem_file, stream_file, flow_dir_file, sigma=1.5
             'curvature': os.path.join(wbt.work_dir, 'profile_curvature.tif'),
             'hand': os.path.join(wbt.work_dir, 'hand.tif'),
             }
-
