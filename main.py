@@ -9,23 +9,17 @@ import pandas as pd
 from valleys.utils import setup_wbt
 from valleys.utils import chomp_raster
 from valleys.cross_section import get_cross_section_points
-from valleys.fun import flow_accumulation_workflow
-from valleys.fun import align_to_terrain
-from valleys.fun import segment_subbasins
+from valleys.terrain import flow_accumulation_workflow
+from valleys.terrain import align_to_terrain
+from valleys.terrain import segment_subbasins
 
 # ------------ INPUTS ------------
 
 dem_file =  "./sampledata/180600060101/dem.tif"
 nhd_network_file = "./sampledata/180600060101/flowlines_mr.shp"
 
-wbt_exe_path = os.path.expanduser("~/opt/WBT/")
-working_dir = os.path.abspath("./data/working/")
-
-if os.path.isdir(working_dir):
-    shutil.rmtree(working_dir)
-os.makedirs(working_dir)
-
-wbt = setup_wbt(wbt_exe_path, working_dir)
+wbt = setup_wbt(os.path.expanduser("~/opt/WBT/", 
+                os.path.abspath("./data/working/")
 
 # ------------ WORKFLOW ------------
 
