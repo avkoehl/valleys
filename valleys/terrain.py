@@ -1,9 +1,25 @@
 import os
 
 import rioxarray
-from shapely.geometry import Point
+from shapely.geometry import Point, box
 from scipy.ndimage import gaussian_filter
 import whitebox
+
+from valleys.utils import chomp_raster
+
+def clip_to_subbasin(dem, hillslopes, flow_dir, stream, subbasins, subbasin_id):
+    dem_clipped = dem.where(subbasins == subbasin_id)
+    dem_clipped = chomp_raster(dem_clipped)
+    
+    hillslope_clipped = hillslopes.where(subbasins == subbasin_id)
+    hillslope_clipped = chomp_raster(hillslope_clipped)
+
+    flow_dir_clipped = flow_dir.where(subbasins == subbasin_id)
+    flow_dir_clipped = chomp_raster(flow_dir_clipped)
+
+    stream_clipped = stream.where(stream == subbasin_id)
+    stream_clipped = stream_clipped.rio.clip([box(*dem_clipped.rio.bounds())], drop=True)
+    return dem_clipped, hillslope_clipped, flow_dir_clipped, stream_clipped
 
 def flow_accumulation_workflow(wbt, dem_file):
     wbt.flow_accumulation_full_workflow(
@@ -101,8 +117,7 @@ def compute_terrain_rasters(wbt, dem_file, stream_file, flow_dir_file, sigma=1.5
     # because scipy gaussian has options to maintain the dimensions, 
     # i.e keep the same size as the input
     dem = rioxarray.open_rasterio(dem_file)
-    gf = gaussian_filter(dem, sigma=sigma)
-    dem.data = gf
+    dem.data = gaussian_filter(dem, sigma=sigma)
     dem.rio.to_raster(os.path.join(wbt.work_dir, "dem_gauss.tif"))
 
     #wbt.gaussian_filter(dem_file, "dem_gauss.tif", sigma=sigma)

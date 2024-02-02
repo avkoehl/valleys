@@ -12,6 +12,7 @@ output:
 import os
 
 import geopandas as gpd
+import numpy as np
 import pandas as pd
 import rioxarray
 import scipy  
@@ -32,15 +33,12 @@ def rezero_xsection(xs_points):
     # this can cause the data to be the same, leading to a failure in peak finding
     # so we need to remove 'duplicate' points
     # better would be to drop duplicates based on the pointx and pointy but this is a good start
-    temp = temp.drop_duplicates(subset=['elevation', 'slope', 'curvature', 'hand'])
+    # temp = temp.drop_duplicates(subset=['elevation', 'slope', 'curvature', 'hand'])
+    # TODO: think on this, as doing this may remove alpha == 0
 
-    offsets = {}
-    for ind in temp['cross_section_id'].unique():
-        df = temp.loc[temp['cross_section_id'] == ind]
-
-        if df.loc[df['alpha'] == 0]['hand'].iloc[0] != min(df['hand']):
-            min_ind = df['hand'].idxmin(skipna=True)        
-            temp.loc[temp['cross_section_id'] == ind, 'alpha'] = (df['alpha'] - df['alpha'][min_ind])
+    if temp.loc[temp['alpha'] == 0]['hand'].iloc[0] != min(temp['hand']):
+        min_ind = temp['hand'].idxmin(skipna=True)        
+        temp['alpha'] = (temp['alpha'] - temp['alpha'][min_ind])
 
     return temp
 
@@ -57,10 +55,11 @@ def find_break_point(df, peak_threshold=0.002, slope_threshold=.4, hand_threshol
 
         # hand threshold
         exceeds = (key_points['hand'] > hand_threshold).idxmax()
-        key_points = key_points.loc[:(exceeds-1)]
+        alpha_exceeds = key_points['alpha'].loc[exceeds]
+        key_points = key_points.loc[key_points['alpha'].abs() < np.abs(alpha_exceeds)]
 
         if not len(key_points):
-            return (None, inds)
+            return (None, df['point_id'].iloc[inds].to_list())
 
         key_points['profile_step_slope'] = key_points['hand'].diff(periods=-1).abs() / key_points['alpha'].diff(periods=-1).abs()
 
@@ -70,14 +69,14 @@ def find_break_point(df, peak_threshold=0.002, slope_threshold=.4, hand_threshol
 
             # if the first point is the channel point, then the break point is the point right after it
             if exceeds.iloc[0]:
-                break_point = exceeds.idxmax() + 1
+                break_point = df['point_id'].iloc[exceeds.argmax() + 1]
             else:
                 # return the first point that exceeds the threshold
-                break_point = exceeds.idxmax()
-            return (break_point, inds)
+                break_point = df['point_id'].iloc[exceeds.argmax()]
+            return (break_point, df['point_id'].iloc[inds].to_list())
 
     # if nothing found return None
-    return (None, inds) 
+    return (None, df['point_id'].iloc[inds].to_list()) 
 
 def determine_threshold(break_points):
     threshold = break_points['hand'].quantile(.6)
@@ -107,7 +106,7 @@ def add_attributes_to_xs(wbt, points, dem, stream, flow_dir, hillslope):
     hand = rioxarray.open_rasterio(rasters['hand'], masked=True).squeeze()
 
 
-    points['point_id'] = points.index
+    points['point_id'] = np.arange(len(points))
 
     points['elevation'] = rioxarray_sample_points(dem, points)
     points['slope'] = rioxarray_sample_points(slope, points)
@@ -169,23 +168,33 @@ def close_holes(poly):
         return poly
 
 def get_break_points(points):
+    """
+    Find the break points for each cross section
+    Can return None, One, or Two break points
+
+    cross_section_id, pos_break_point_id, neg_break_point_id, pos_peak_points, neg_peak_points
+
+    """
+
     break_points = []
     for xs_id in points['cross_section_id'].unique():
+        print(xs_id)
         df = points.loc[points['cross_section_id'] == xs_id]
+        df_pos = df.loc[df['alpha'] >= 0]
+        df_neg = df.loc[df['alpha'] <= 0]
+
+        if len(df_pos) < 5 or len(df_neg) < 5:
+            break_points.append((xs_id, None, None, None, None))
+            continue
+
         df = rezero_xsection(df)
 
-        # positive break point
-        df_pos = df.loc[df['alpha'] >= 0]
-        pos_break_point = find_break_point(df_pos)
+        pos_break_point, pos_inds = find_break_point(df_pos)
+        neg_break_point, neg_inds = find_break_point(df_neg)
 
-        # negative break point
-        df_neg = df.loc[df['alpha'] <= 0]
-        neg_break_point = find_break_point(df_neg)
-
-        break_points.append(pos_break_point)
-        break_points.append(neg_break_point)
-
-    break_points = pd.concat(break_points)
+        break_points.append(
+            (xs_id, pos_break_point, neg_break_point, pos_inds, neg_inds))
+    break_points = pd.DataFrame(break_points, columns=['cross_section_id', 'pos_break_point_id', 'neg_break_point_id', 'pos_peak_points', 'neg_peak_points'])
     return break_points
 
 def delineate_valley(wbt, dem_raster, flowline, stream_raster, hillslope_raster, flow_dir_raster):

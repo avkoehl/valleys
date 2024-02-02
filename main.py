@@ -12,89 +12,60 @@ from valleys.cross_section import get_cross_section_points
 from valleys.terrain import flow_accumulation_workflow
 from valleys.terrain import align_to_terrain
 from valleys.terrain import segment_subbasins
+from valleys.terrain import clip_to_subbasin
+from valleys.valley import add_attributes_to_xs
+from valleys.valley import get_break_points
 
 # ------------ INPUTS ------------
 
 dem_file =  "./sampledata/180600060101/dem.tif"
 nhd_network_file = "./sampledata/180600060101/flowlines_mr.shp"
 
-wbt = setup_wbt(os.path.expanduser("~/opt/WBT/", 
-                os.path.abspath("./data/working/")
+wbt = setup_wbt(os.path.expanduser("~/opt/WBT/"), 
+                os.path.abspath("./data/working/"))
 
-# ------------ WORKFLOW ------------
+# ------------ SEGMENT ------------
 
 nhd_network = gpd.read_file(nhd_network_file)
 
-# flow accumulation workflow 
 flow_acc_files = flow_accumulation_workflow(wbt, dem_file)
-
-# align nhd to terrain
 stream_files = align_to_terrain(wbt, nhd_network, flow_acc_files['flow_accum'], flow_acc_files['flow_dir'])
-
-# segment basin
 subbasin_files = segment_subbasins(wbt, stream_files['streams'], flow_acc_files['flow_dir'])
 
-# load subbasins raster and flowlines
+# load rasters
 subbasins = rioxarray.open_rasterio(subbasin_files['subbasins'], masked=True).squeeze()
 flowlines = gpd.read_file(stream_files['streams_shp'])
-
 dem = rioxarray.open_rasterio(flow_acc_files['conditioned_dem'], masked=True).squeeze()
 hillslopes = rioxarray.open_rasterio(subbasin_files['hillslopes'], masked=True).squeeze()
 flow_dir = rioxarray.open_rasterio(flow_acc_files['flow_dir'], masked=True).squeeze()
 stream = rioxarray.open_rasterio(stream_files['streams'], masked=True).squeeze()
 
-for row in flowlines.iterrows():
-    subbasin_id = row['STRM_VAL']
-    flowline = row['geometry']
+# ------------ VALLEY DELINEATION ------------
 
-    # clip dem, stream, and flow dir and hillslope to subbasin
-    dem_clipped = dem.where(subbasins == subbasin_id)
-    dem_clipped = chomp_raster(dem_clipped)
-    
-    hillslope_clipped = hillslopes.where(subbasins == subbasin_id)
-    hillslope_clipped = chomp_raster(hillslope_clipped)
+# work with sample
+subbasin_id = 1
 
-    flow_dir_clipped = flow_dir.where(subbasins == subbasin_id)
-    flow_dir_clipped = chomp_raster(flow_dir_clipped)
+flowline = flowlines.loc[flowlines['STRM_VAL'] == subbasin_id]['geometry'].iloc[0]
+dem, hillslope, flow_dir, stream = clip_to_subbasin(dem, hillslopes, flow_dir, stream, subbasins, subbasin_id)
 
-    stream_clipped = stream.where(stream == subbasin_id)
-    stream_clipped = stream_clipped.rio.clip([box(*dem_clipped.rio.bounds())], drop=True)
+points = get_cross_section_points(flowline, xs_spacing=100, xs_width=500, xs_point_spacing=10, tolerance=20)
+points = add_attributes_to_xs(wbt, points, dem, stream, flow_dir, hillslope)
 
-    # VALLEY DELINEATION
-    flowline = flowline.simplify(10)
-    points = get_cross_section_points(flowline, xs_spacing=200, xs_width=500, xs_point_spacing=10)
-    points.index = range(len(points))
+break_points_df = get_break_points(points)
 
-    points = add_attributes_to_xs(wbt, points, dem_clipped, stream_clipped, flow_dir_clipped, hillslope_clipped)
+# plot example
+xs_id = 39
+break_points = break_points_df.loc[break_points_df['cross_section_id'] == xs_id]
 
-    hand = rioxarray.open_rasterio(os.path.join(wbt.work_dir, 'hand.tif'), masked=True).squeeze()
+bp = points.loc[points['point_id'] == break_points['pos_break_point_id'].iloc[0]]
+peaks = break_points['pos_peak_points'].iloc[0] +  break_points['neg_peak_points'].iloc[0]
+peaks = points.loc[points['point_id'].isin(peaks)]
 
-   break_points = []
-   for xs_id in points['cross_section_id'].unique():
-       print(xs_id)
+x = points.loc[points['cross_section_id'] == xs_id]['alpha']
+y = points.loc[points['cross_section_id'] == xs_id]['hand']
 
-       df = points.loc[points['cross_section_id'] == xs_id]
-       # if xsection is not suitable for valley delineation, skip
-       # keep in mind that points where values are NA were removed
-       # requirements: atleast 5 points on each side of the xsection
-       if len(df.loc[df['alpha'] > 0]) < 5 or len(df.loc[df['alpha'] < 0]) < 5:
-           continue
-
-       df = rezero_xsection(df)
-
-       # positive break point
-       df_pos = df.loc[df['alpha'] >= 0]
-       pos_break_point,_ = find_break_point(df_pos)
-
-       # negative break point
-       df_neg = df.loc[df['alpha'] <= 0]
-       neg_break_point,_ = find_break_point(df_neg)
-
-       break_points.append(pos_break_point)
-       break_points.append(neg_break_point)
-       
-   break_points = [bp for bp in break_points if bp is not None]
-   break_points = points.loc[break_points]
-
-   valley_polygon = points_to_polygon(points, hillslope_clipped)
-
+# add peaks
+plt.plot(x,y)
+plt.scatter(peaks['alpha'], peaks['hand'], c='r', label='peaks')
+plt.scatter(bp['alpha'], bp['hand'], c='green', label='peaks')
+plt.show()
