@@ -41,6 +41,7 @@ flow_dir = rioxarray.open_rasterio(flow_acc_files['flow_dir'], masked=True).sque
 stream = rioxarray.open_rasterio(stream_files['streams'], masked=True).squeeze()
 
 # ------------ VALLEY DELINEATION ------------
+# subbasin 1 xs 39 if spacing is 50 is example of cross section 
 
 # work with sample
 subbasin_id = 1
@@ -48,7 +49,7 @@ subbasin_id = 1
 flowline = flowlines.loc[flowlines['STRM_VAL'] == subbasin_id]['geometry'].iloc[0]
 dem, hillslope, flow_dir, stream = clip_to_subbasin(dem, hillslopes, flow_dir, stream, subbasins, subbasin_id)
 
-points = get_cross_section_points(flowline, xs_spacing=100, xs_width=500, xs_point_spacing=10, tolerance=20)
+points = get_cross_section_points(flowline, xs_spacing=50, xs_width=500, xs_point_spacing=10, tolerance=20)
 points = add_attributes_to_xs(wbt, points, dem, stream, flow_dir, hillslope)
 
 break_points_df = get_break_points(points)
@@ -57,15 +58,22 @@ break_points_df = get_break_points(points)
 xs_id = 39
 break_points = break_points_df.loc[break_points_df['cross_section_id'] == xs_id]
 
+
+#---
+
 bp = points.loc[points['point_id'] == break_points['pos_break_point_id'].iloc[0]]
 peaks = break_points['pos_peak_points'].iloc[0] +  break_points['neg_peak_points'].iloc[0]
 peaks = points.loc[points['point_id'].isin(peaks)]
+
+fig, axes = plt.subplots(1,2)
 
 x = points.loc[points['cross_section_id'] == xs_id]['alpha']
 y = points.loc[points['cross_section_id'] == xs_id]['hand']
 
 # add peaks
-plt.plot(x,y)
-plt.scatter(peaks['alpha'], peaks['hand'], c='r', label='peaks')
-plt.scatter(bp['alpha'], bp['hand'], c='green', label='peaks')
+axes[0].plot(x,y)
+axes[0].scatter(peaks['alpha'], peaks['hand'], c='r', label='peaks')
+axes[0].scatter(bp['alpha'], bp['hand'], c='green', label='peaks')
+axes[1].plot(x, points.loc[points['cross_section_id'] == xs_id]['curvature'])
+axes[1].scatter(peaks['alpha'], peaks['curvature'], c='r', label='peaks')
 plt.show()
