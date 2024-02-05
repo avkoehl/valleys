@@ -14,8 +14,10 @@ import os
 import geopandas as gpd
 import numpy as np
 import pandas as pd
+import rasterio
 import rioxarray
 import scipy  
+from shapely.geometry import shape, MultiPolygon, Polygon
 from scipy import signal
 import xarray as xr
 import matplotlib.pyplot as plt
@@ -216,7 +218,7 @@ def rioxarray_sample_points(raster, points, method='nearest'):
     values = raster.sel(x=xs, y=ys, method=method).values
     return values
 
-def add_attributes_to_xs(wbt, points, dem, stream, flow_dir, hillslope):
+def derive_attributes(wbt, dem, stream, flow_dir, hillslope):
     # save rasters to temp files 
     dem_file = os.path.join(wbt.work_dir, 'temp_dem.tif')
     stream_file = os.path.join(wbt.work_dir, 'temp_stream.tif')
@@ -227,6 +229,15 @@ def add_attributes_to_xs(wbt, points, dem, stream, flow_dir, hillslope):
     flow_dir.rio.to_raster(flow_dir_file)
 
     rasters = compute_terrain_rasters(wbt, dem_file, stream_file, flow_dir_file, sigma=1.2)
+
+    # cleanup temp files
+    os.remove(dem_file)
+    os.remove(stream_file)
+    os.remove(flow_dir_file)
+    return rasters
+
+def add_attributes_to_xs(points, rasters, hillslope, stream):
+
     dem = rioxarray.open_rasterio(rasters['dem_gauss'], masked=True).squeeze()
     slope = rioxarray.open_rasterio(rasters['slope'], masked=True).squeeze()
     curvature = rioxarray.open_rasterio(rasters['curvature'], masked=True).squeeze()
@@ -244,14 +255,7 @@ def add_attributes_to_xs(wbt, points, dem, stream, flow_dir, hillslope):
 
     points = points.loc[~points['elevation'].isna()]
     points = points.loc[~points['slope'].isna()]
-
-
-    # cleanup temp files
-    os.remove(dem_file)
-    os.remove(stream_file)
-    os.remove(flow_dir_file)
-    return points
-
+    return points 
 
 def polygonize(raster):
     raster.rio.to_raster('temp.tif', dtype=np.uint8)
@@ -266,13 +270,10 @@ def polygonize(raster):
     os.remove('temp.tif')
     return polygons
     
-def points_to_polygon(break_points, threshold, hand_raster, slope_raster, 
-                      slope_threshold=.4, buffer=1):
+def delineate_floor(threshold, hand):
 
-    hand = hand.where(hand != -32768)
-    values = hand.where(hand < (threshold + buffer))
-    
-    # binarize
+    values = hand.where(hand < threshold) 
+    values = values.where(np.isnan(values), 1)
     values = values.where(~np.isnan(values), 0)
     values = (values > 0).astype(int)
     
@@ -280,20 +281,28 @@ def points_to_polygon(break_points, threshold, hand_raster, slope_raster,
     values.data = scipy.ndimage.binary_fill_holes(values.data)
     values = values.where(values != 0)
     
+    # TODO: redo this filter, for now ignored because slope raster isn't quite right -
+    # its too small, has different dimensions than the hand raster
+    # in future will calculate terrain rasters on the basin not the subbasin
+    # store as a dataset rather than a bunch of files
     # filter by slope
-    values = values.where((slope < slope_threshold) & (values == 1))
-    values.data = values.data.astype(np.uint8)
+    # values = values.where((slope < slope_threshold) & (values == 1))
+    #values.data = values.data.astype(np.uint8)
 
     # polygonize
     polygons = polygonize(values)
     polygons = gpd.GeoDataFrame(geometry=polygons, crs=3310)
     polygons['geometry'] = polygons['geometry'].apply(close_holes)
-    return polygons
+    # convert to multipolygon or single polygon
+    if len(polygons) > 1:
+        polygon = MultiPolygon(polygons['geometry'].values)
+        return polygon, values
+    return polygons['geometry'].iloc[0], values
 
 def close_holes(poly):
-        if len(poly.interiors):
-            return Polygon(list(poly.exterior.coords))
-        return poly
+    if len(poly.interiors):
+        return Polygon(list(poly.exterior.coords))
+    return poly
 
 def get_break_points(points):
     """

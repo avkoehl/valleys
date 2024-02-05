@@ -3,6 +3,7 @@ import shutil
 
 import geopandas as gpd
 import rioxarray
+from rioxarray.merge import merge_arrays
 from shapely.geometry import box
 import pandas as pd
 
@@ -14,6 +15,7 @@ from valleys.terrain import segment_subbasins
 from valleys.terrain import clip_to_subbasin
 from valleys.valley import add_attributes_to_xs
 from valleys.valley import get_break_points
+from valleys.valley import delineate_floor
 
 # ------------ INPUTS ------------
 
@@ -40,16 +42,42 @@ flow_dir_f = rioxarray.open_rasterio(flow_acc_files['flow_dir'], masked=True).sq
 stream_f = rioxarray.open_rasterio(stream_files['streams'], masked=True).squeeze()
 
 # ------------ VALLEY DELINEATION ------------
-count = 0
-for subbasin_id in pd.Series(subbasins.values.flatten()).dropna().unique():
-    print(subbasin_id)
-    flowline = flowlines.loc[flowlines['STRM_VAL'] == subbasin_id]['geometry'].iloc[0]
+polygons = []
+values = []
+break_points = []
+for subbasin_id in pd.Series(subbasins_f.values.flatten()).dropna().unique():
+    flowline = flowlines_f.loc[flowlines_f['STRM_VAL'] == subbasin_id]['geometry'].iloc[0]
     dem, hillslope, flow_dir, stream = clip_to_subbasin(dem_f, hillslopes_f, flow_dir_f, stream_f, subbasins_f, subbasin_id)
 
     points = get_cross_section_points(flowline, xs_spacing=50, xs_width=500, xs_point_spacing=10, tolerance=20)
-    points = add_attributes_to_xs(wbt, points, dem, stream, flow_dir, hillslope)
+    terrain_rasters = derive_attributes(wbt, dem, stream, flow_dir, hillslope)
+
+    # check if hand file exists
+    if not os.path.exists(terrain_rasters['hand']):
+        continue
+
+    points = add_attributes_to_xs(points, terrain_rasters, hillslope, stream)
 
     break_points_df = get_break_points(points)
-    if count == 5:
-        break
-    count = count + 1
+    hand = rioxarray.open_rasterio(terrain_rasters['hand'], masked=True).squeeze()
+
+    if len(break_points_df) == 0:
+        continue
+
+    for file in terrain_rasters.values():
+        os.remove(file)
+
+    threshold = break_points_df['hand'].quantile(.6)
+    polygon, bottom = delineate_floor(threshold, hand)
+    bottom = bottom * subbasin_id
+    polygons.append((subbasin_id, polygon))
+    values.append(bottom)
+    break_points.append(break_points_df)
+
+# ------------ OUTPUT ------------
+break_points = pd.concat(break_points)
+valleys = gpd.GeoDataFrame(polygons, columns=['subbasin_id', 'geometry'], crs=flowlines_f.crs)
+merged = merge_arrays(values)
+merged.rio.to_raster('valleys.tif')
+valleys.to_file('valleys.shp')
+break_points.to_file('break_points.shp')
