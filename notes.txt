@@ -1,0 +1,43 @@
+modules:
+- watershed.py
+- subbasin.py
+- cross_section.py # code for generating cross sections
+- plotting (plot cross sections, valley floor, hillshades, etc)
+
+watershed class
+# code for delineating watershed and computing terrain attributes
+ - dem
+ - flowlines
+ ----
+- dataset: ['dem', 'conditioned_dem', 'smoothed_dem', 'slope', 'curvature', 'streams', 'flow_dir', 'flow_acc', 'subbasin', 'hillslopes', 'hand']
+
+methods:
+ - flow_accumulation_workflow
+ - align_flowlines_to_dem 
+ - watershed_delineation
+ - derive_terrain_attributes
+ - clip_to_subbasin (returns clipped dataset)
+ - compute hand (loops through subbasins and computes hand and then merges them)
+ - process_watershed (run all methods)
+
+----------------
+
+# code for finding breakpoints on cross sections and then delineating valley floor from those breakpoints
+subbasin class
+- dataset: ['smoothed_dem', 'slope', 'curvature', 'streams', 'hillslopes', 'flow_dir', 'hand']
+- flowline
+-------
+- cross_sections_df
+- break_points_df
+- threshold
+- valley_floor_polygon
+- valley_floor_raster
+
+methods:
+- sample_cross_sections_points
+- find_breakpoints (points)
+- determine_threshold (break_points)
+- delineate_valley_floor (threshold)
+- valley_floor_delination_workflow
+
+extra functions for valley delineation (e.g cross_section_preprocess, find_break_point)
