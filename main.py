@@ -7,6 +7,7 @@ import rioxarray
 
 from valleys.utils import setup_wbt
 from valleys.watershed import Watershed
+from valleys.subbasin import Subbasin
 
 # ------------ INPUTS ------------
 
@@ -26,5 +27,11 @@ watershed.process_watershed(wbt)
 s_ids = np.unique(watershed.dataset.subbasins.values)
 s_ids = s_ids[~np.isnan(s_ids)]
 for s_id in s_ids:
-    subbasin = watershed.clip_to_subbasin(s_id)
-
+    mapping = {
+            'conditioned_dem', 'elevation'
+            'flowpaths_identified', 'strm_val'
+            }
+    subbasin_data, flowline = watershed.clip_to_subbasin(s_id)
+    # rename bands to match mapping
+    subbasin_data = subbasin_data.rename(mapping)
+    subbasin = Subbasin(subbasin_data, flowline, s_id)

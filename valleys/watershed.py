@@ -112,6 +112,7 @@ class Watershed:
             for key in files:
                 self.files[key] = files[key]
             self._update_dataset()
+            self.flowlines = gpd.read_file(files['flowpaths_shp'])
         else:
             RuntimeError('align flowlines to dem failed')
 
@@ -200,7 +201,7 @@ class Watershed:
                 raster_clipped = raster_clipped.rio.clip([dem_bounds], drop=True)
                 clipped[data_layer] = raster_clipped
         
-        return clipped
+        return clipped, flowlines.loc[flowlines['strm_val'] == subbasin_id]
 
     def compute_hand(self, wbt):
         # confirm dem, flowpaths, and subbasins exist
