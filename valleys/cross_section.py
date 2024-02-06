@@ -2,15 +2,15 @@
 Code for methods that depend on cross section analysis
 
 1. simplify stream linestring
-2. get points on simplified stream linestring
-3. get points on perpendicular lines to the simplified stream linestring
+2. get points on simplified stream linestring at xs_spacing
+3. get points on perpendicular lines to the simplified stream linestring 
+   at xs_point_spacing up to xs_width on either side of the stream
 """
 
 import numpy as np
 import pandas as pd
 import geopandas as gpd
-from shapely.geometry import LineString, Point, Polygon
-import rioxarray
+from shapely.geometry import LineString, Point 
 
 def get_cross_section_points(linestring, simplify=True, tolerance=20, xs_spacing=5, 
                              xs_width=100, xs_point_spacing=10, crs=3310):
@@ -39,7 +39,6 @@ def get_cross_section_points(linestring, simplify=True, tolerance=20, xs_spacing
 
 # --- Internal Functions ----------------------------------------------------- #
 def _get_points_on_linestring(linestring, spacing):
-    """ Get Points on Linestring """
     points = []
     for i in range(0, int(linestring.length), spacing):
         point = linestring.interpolate(i)
