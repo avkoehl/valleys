@@ -16,11 +16,14 @@ methods:
  - process_watershed (run all methods)
  """
 import os
+import shutil
 
 import geopandas as gpd
+import numpy as np
 import rioxarray
+import xarray as xr
 from scipy.ndimage import gaussian_filter
-from shapely.geometry import box
+from shapely.geometry import box, Point
 
 class Watershed:
     def __init__(self, dem, flowlines, working_dir):
@@ -28,15 +31,19 @@ class Watershed:
         self.flowlines = flowlines
 
         self.working_dir = os.path.abspath(working_dir)
+        if os.path.isdir(self.working_dir):
+            shutil.rmtree(self.working_dir)
+        os.makedirs(self.working_dir)
+
         self.files = {
-                'dem': self.working_dir + 'dem.tif',
-                'flowlines': self.working_dir + 'flowlines.shp',
+                'dem': os.path.join(self.working_dir, 'dem.tif'),
+                'flowlines': os.path.join(self.working_dir, 'flowlines.shp'),
                 }
 
 
         self.dataset = None
 
-        self.dem.to_raster(self.files['dem'])
+        self.dem.rio.to_raster(self.files['dem'])
         self.flowlines.to_file(self.files['flowlines'])
 
     def flow_accumulation_workflow(self, wbt):
@@ -45,32 +52,32 @@ class Watershed:
         # load in the outputs
         wbt.flow_accumulation_full_workflow(
                 self.files['dem'],
-                self.working_dir + 'conditioned_dem.tif',
-                self.working_dir + 'flow_dir.tif',
-                self.working_dir + 'flow_acc.tif',
+                os.path.join(self.working_dir, 'conditioned_dem.tif'),
+                os.path.join(self.working_dir, 'flow_dir.tif'),
+                os.path.join(self.working_dir, 'flow_acc.tif'),
                 out_type = 'cells',
                 log = False,
                 clip = False,
                 esri_pntr = False,
                 )
         # check that the files are there
-        if os.path.exists(self.working_dir + 'conditioned_dem.tif') and os.path.exists(self.working_dir + 'flow_dir.tif') and os.path.exists(self.working_dir + 'flow_acc.tif'):
+        if os.path.exists(os.path.join(self.working_dir, 'conditioned_dem.tif')) and os.path.exists(os.path.join(self.working_dir, 'flow_dir.tif')) and os.path.exists(os.path.join(self.working_dir, 'flow_acc.tif')):
             # load them in
-            self.files['conditioned_dem'] = self.working_dir + 'conditioned_dem.tif'
-            self.files['flow_dir'] = self.working_dir + 'flow_dir.tif'
-            self.files['flow_acc'] = self.working_dir + 'flow_acc.tif'
-            _update_dataset()
+            self.files['conditioned_dem'] = os.path.join(self.working_dir, 'conditioned_dem.tif')
+            self.files['flow_dir'] = os.path.join(self.working_dir, 'flow_dir.tif')
+            self.files['flow_acc'] = os.path.join(self.working_dir, 'flow_acc.tif')
+            self._update_dataset()
 
         else:
             RuntimeError('flow accumulation workflow failed')
 
-    def align_flowlines_to_dem(self):
+    def align_flowlines_to_dem(self, wbt):
         files = {
-                'seed_points': self.working_dir + 'seed_points.shp',
-                'snapped_seed_points': self.working_dir + 'snapped_seed_points.shp',
-                'flowpaths': self.working_dir + 'flowpaths.tif',
-                'flowpaths_identified': self.working_dir + 'flowpaths_identified.tif',
-                'flowpaths_shp': self.working_dir + 'flowpaths.shp',
+                'seed_points': os.path.join(self.working_dir, 'seed_points.shp'),
+                'snapped_seed_points': os.path.join(self.working_dir, 'snapped_seed_points.shp'),
+                'flowpaths': os.path.join(self.working_dir, 'flowpaths.tif'),
+                'flowpaths_identified': os.path.join(self.working_dir, 'flowpaths_identified.tif'),
+                'flowpaths_shp': os.path.join(self.working_dir, 'flowpaths.shp'),
                 }
 
         seed_points = _find_seed_points(self.flowlines)
@@ -104,18 +111,18 @@ class Watershed:
         if all(exists):
             for key in files:
                 self.files[key] = files[key]
-            _update_dataset()
+            self._update_dataset()
         else:
             RuntimeError('align flowlines to dem failed')
 
-    def watershed_deliniation(self):
+    def watershed_delineation(self, wbt):
         # check if streams_file and flow_dir exist
         if not (os.path.exists(self.files['flowpaths_identified']) and os.path.exists(self.files['flow_dir'])):
             RuntimeError('Need to align flowlines to dem')
 
         files = {
-                'subbasins': self.working_dir + 'subbasins.tif',
-                'hillslopes': self.working_dir + 'hillslopes.tif'
+                'subbasins': os.path.join(self.working_dir, 'subbasins.tif'),
+                'hillslopes': os.path.join(self.working_dir, 'hillslopes.tif')
                 }
 
         wbt.subbasins(
@@ -135,15 +142,15 @@ class Watershed:
         if all(exists):
             for key in files:
                 self.files[key] = files[key]
-            _update_dataset()
+            self._update_dataset()
         else:
             RuntimeError('watershed delineation failed')
 
-    def derive_terrain_attributes(self, sigma=1.2):
+    def derive_terrain_attributes(self, wbt, sigma=1.2):
         files = {
-                'dem_gauss': self.working_dir + 'dem_gauss.tif',
-                'slope': self.working_dir + 'slope.tif',
-                'curvature': self.working_dir + 'curvature.tif',
+                'dem_gauss': os.path.join(self.working_dir, 'dem_gauss.tif'),
+                'slope': os.path.join(self.working_dir, 'slope.tif'),
+                'curvature': os.path.join(self.working_dir, 'curvature.tif'),
                 }
 
         dem = rioxarray.open_rasterio(self.files['dem'])
@@ -154,7 +161,7 @@ class Watershed:
                 files['dem_gauss'],
                 files['slope'],
                 )
-        wbt.curvature(
+        wbt.profile_curvature(
                 files['dem_gauss'],
                 files['curvature'],
                 )
@@ -163,13 +170,15 @@ class Watershed:
         if all(exists):
             for key in files:
                 self.files[key] = files[key]
-            _update_dataset()
+            self._update_dataset()
         else:
             RuntimeError('derive terrain attributes failed')
 
     def _update_dataset(self):
         self.dataset = xr.Dataset()
         for key in self.files:
+            if self.files[key].endswith('.shp'):
+                continue
             self.dataset[key] = rioxarray.open_rasterio(self.files[key], masked=True).squeeze()
 
     def clip_to_subbasin(self, subbasin_id):
@@ -180,72 +189,55 @@ class Watershed:
         clipped = xr.Dataset()
         dem = self.dataset['dem']
         dem_clipped = dem.where(self.dataset['subbasins'] == subbasin_id, drop=True)
-        dem_clipped = __chomp_raster(dem_clipped)
+        dem_clipped = _chomp_raster(dem_clipped)
         dem_bounds = box(*dem_clipped.rio.bounds())
         clipped['dem'] = dem_clipped
 
-        for file in self.files:
-            if file != 'dem':
-                raster = self.dataset[file]
-                raster_clipped = raster.rio.clip(dem_bounds)
-                raster_clipped = raster_clipped.rio.clip(dem_bounds, drop=True)
-                clipped[file] = raster_clipped
+        for data_layer in self.dataset.data_vars:
+            if data_layer != 'dem':
+                raster = self.dataset[data_layer]
+                raster_clipped = raster.where(self.dataset['subbasins'] == subbasin_id, drop=True)  
+                raster_clipped = raster_clipped.rio.clip([dem_bounds], drop=True)
+                clipped[data_layer] = raster_clipped
+        
         return clipped
 
-    def compute_hand(self):
+    def compute_hand(self, wbt):
         # confirm dem, flowpaths, and subbasins exist
         if not (os.path.exists(self.files['dem']) and os.path.exists(self.files['flowpaths']) and os.path.exists(self.files['subbasins'])):
             RuntimeError('Need to align flowlines to dem and delineate watershed first')
 
         files = {
-                'filled_dem': self.working_dir + 'filled_dem.tif',
-                'hand': self.working_dir + 'hand.tif',
+                'filled_dem': os.path.join(self.working_dir, 'filled_dem.tif'),
+                'hand': os.path.join(self.working_dir, 'hand.tif'),
                 }
 
-        subbasin_hand_rasters = []
-        for subbasin_id in np.unique(self.dataset['subbasins'].values):
-            clipped = self.clip_to_subbasin(subbasin_id)
+        wbt.fill_depressions(
+                self.files['conditioned_dem'],
+                files['filled_dem'],
+                fix_flats = True,
+                flat_increment = None,
+                max_depth = None
+            )
 
-            # save dem to temp file
-            clipped['dem'].rio.to_raster(self.working_dir + f'temp_dem_{subbasin_id}.tif')
-            
-            # fill depressions on that temp and save to temp file
-            wbt.fill_depressions(
-                    self.working_dir + f'temp_dem_{subbasin_id}.tif',
-                    self.working_dir + f'temp_filled_dem_{subbasin_id}.tif',
-                    fix_flats = True,
-                    flat_increment = None,
-                    max_depth = None
-                    )
+        wbt.elevation_above_stream(
+                files['filled_dem'],
+                self.files['flowpaths'],
+                files['hand']
+                )
 
-            # run elevation above stream and save to temp file
-            wbt.elevation_above_stream(
-                    self.working_dir + f'temp_filled_dem_{subbasin_id}.tif',
-                    self.files['flowpaths'],
-                    self.working_dir + f'temp_hand_{subbasin_id}.tif'
-                    )
+        if not os.path.exists(files['filled_dem']) or not os.path.exists(files['hand']):
+            RuntimeError('fill depressions failed, check conditioned_dem')
 
-            # load temp file as raster and append to subbasin_hand_rasters
-            hand_raster = rioxarray.open_rasterio(self.working_dir + f'temp_hand_{subbasin_id}.tif', masked=True).squeeze()
-
-            # remove all temp files
-            os.remove(self.working_dir + f'temp_dem_{subbasin_id}.tif')
-            os.remove(self.working_dir + f'temp_filled_dem_{subbasin_id}.tif')
-            os.remove(self.working_dir + f'temp_hand_{subbasin_id}.tif')
-
-        # merge subbasin_hand_rasters into single raster
-        hand = merge_arrays(subbasin_hand_rasters)
-        hand.rio.to_raster(files['hand'])
         self.files['hand'] = files['hand']
+        self._update_dataset()
 
-        _update_dataset()
-
-    def process_watershed(self):
-        self.flow_accumulation_workflow()
-        self.align_flowlines_to_dem()
-        self.watershed_delineation()
-        self.derive_terrain_attributes()
-        self.compute_hand()
+    def process_watershed(self, wbt):
+        self.flow_accumulation_workflow(wbt)
+        self.align_flowlines_to_dem(wbt)
+        self.watershed_delineation(wbt)
+        self.derive_terrain_attributes(wbt)
+        self.compute_hand(wbt)
 
 def _find_seed_points(nhd_network):
     # filter flow lines
