@@ -1,9 +1,8 @@
 """
 Code for methods that depend on cross section analysis
 
-1. simplify stream linestring
-2. get points on simplified stream linestring at xs_spacing
-3. get points on perpendicular lines to the simplified stream linestring 
+1. get points on stream linestring at xs_spacing
+2. get points on perpendicular lines to the stream linestring 
    at xs_point_spacing up to xs_width on either side of the stream
 """
 
@@ -16,8 +15,6 @@ def get_cross_section_points(linestring, simplify=True, tolerance=20, xs_spacing
                              xs_width=100, xs_point_spacing=10, crs=3310):
     """ Get Cross Section Points 
     """
-    linestring = linestring.simplify(tolerance) if simplify else linestring
-
     # get points on the linestring
     points = _get_points_on_linestring(linestring, xs_spacing)
     

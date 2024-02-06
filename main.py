@@ -27,11 +27,18 @@ watershed.process_watershed(wbt)
 s_ids = np.unique(watershed.dataset.subbasins.values)
 s_ids = s_ids[~np.isnan(s_ids)]
 for s_id in s_ids:
-    mapping = {
-            'conditioned_dem', 'elevation'
-            'flowpaths_identified', 'strm_val'
-            }
     subbasin_data, flowline = watershed.clip_to_subbasin(s_id)
+    mapping = {
+            'conditioned_dem': 'elevation',
+            'flowpaths_identified': 'strm_val'
+            }
     # rename bands to match mapping
     subbasin_data = subbasin_data.rename(mapping)
+    keys = ['elevation', 'slope', 'curvature', 'strm_val', 'hillslopes', 'flow_dir', 'hand']
+    subbasin_data = subbasin_data[keys]
     subbasin = Subbasin(subbasin_data, flowline, s_id)
+
+    subbasin.sample_cross_section_points()
+    subbasin.find_breakpoints()
+    subbasin.determine_hand_threshold()
+    subbasin.delineate_valley_floor()

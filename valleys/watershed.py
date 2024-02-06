@@ -201,7 +201,7 @@ class Watershed:
                 raster_clipped = raster_clipped.rio.clip([dem_bounds], drop=True)
                 clipped[data_layer] = raster_clipped
         
-        return clipped, flowlines.loc[flowlines['strm_val'] == subbasin_id]
+        return clipped, self.flowlines.loc[self.flowlines['STRM_VAL'] == subbasin_id]['geometry'].iloc[0]
 
     def compute_hand(self, wbt):
         # confirm dem, flowpaths, and subbasins exist

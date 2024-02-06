@@ -1,5 +1,7 @@
-import pandas as pd
 import geopandas as gpd
+import numpy as np
+import pandas as pd
+from scipy import signal
 
 def filter_ridge_crossing(profile):
     # check if the profile crosses a ridgeline
@@ -56,14 +58,14 @@ def prepare_xsection(xs_points):
     temp = xs_points.copy()
 
     # 0. make sure that the cross section has the correct columns
-    req = ['alpha', 'curvature', 'hand', 'point_id', 'cross_section_id', 'hillslope', 'slope', 'strm_val']
+    req = ['alpha', 'curvature', 'hand', 'point_id', 'cross_section_id', 'hillslopes', 'slope', 'strm_val']
     if not all([col in xs_points.columns for col in req]):
         raise ValueError(f'Columns missing from cross section points. Required: {req}')
 
     # 1. remove any duplicate points
     #  duplicated points can occur if the point spacing is smaller than the dem resolution
     #  alpha, point_id, and point will all be unique
-    duplicted = temp.duplicated(subset=['elevation', 'slope', 'curvature', 'hand', 'hillslope', 'strm_val'])
+    duplicted = temp.duplicated(subset=['elevation', 'slope', 'curvature', 'hand', 'hillslopes', 'strm_val'])
     temp = temp.loc[~duplicted]
 
     # 2. make sure that there are enough points
@@ -159,7 +161,7 @@ def find_half_profile_break_point(profile, peak_ids, slope_threshold=20):
 
 def find_xs_break_points(df, peak_threshold=0.002, slope_threshold=20):
     """ df is the points for a single cross section 
-    has columns: alpha, curvature, hand, point_id, cross_section_id, hillslope, slope, strm_val
+    has columns: alpha, curvature, hand, point_id, cross_section_id, hillslopes, slope, strm_val
 
     # where these are point_ids
     # return (pos_break_point, neg_break_point, peak_ids)

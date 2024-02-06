@@ -18,17 +18,26 @@ delineate_valley_floor
 valley_floor_full_workflow
 
 """
+import os
+
+import geopandas as gpd
 import numpy as np
+import pandas as pd
+import rasterio
+import scipy
+from shapely.geometry import shape
+from shapely.geometry import Polygon
+from shapely.geometry import MultiPolygon
 import xarray as xr
 
 from valleys.cross_section import get_cross_section_points
-from valleys.breakpoints import find_xs_break_point
+from valleys.breakpoints import find_xs_break_points
 
 class Subbasin:
     def __init__(self, dataset, flowline, subbasin_id):
         self.subbasin_id = subbasin_id
-        self.dataset = dataset
         self.flowline = flowline
+        self.dataset = dataset
 
         required_datasets = ['elevation', 'slope', 'curvature', 'strm_val', 'hillslopes', 'flow_dir', 'hand']
         for band in required_datasets:
@@ -40,8 +49,13 @@ class Subbasin:
         self.hand_threshold = None
         self.valley_floor_polygon = None
         self.valley_floor_raster = None
+
+    def _preprocess_flowline(self):
+        self.flowline = self.flowline.simplify(20)
     
     def sample_cross_section_points(self):
+        self._preprocess_flowline()
+
         points = get_cross_section_points(self.flowline, xs_spacing=20, xs_width=500, xs_point_spacing=10)
         points['point_id'] = np.arange(len(points))
 
@@ -53,12 +67,13 @@ class Subbasin:
         self.cross_sections_df = points
 
     def find_breakpoints(self):
-        break_points = []
+        break_points_list = []
         for xs in self.cross_sections_df['cross_section_id'].unique():
             xs_points = self.cross_sections_df.loc[self.cross_sections_df['cross_section_id'] == xs]
-            break_point = find_xs_break_point(xs_points)
-            break_points.append(break_point)
-        break_points_df = pd.DataFrame(break_points, columns=['cross_section_id', 'pos', 'neg', 'peak_ids'])
+            break_points = find_xs_break_points(xs_points)
+            break_points = (xs, *break_points)
+            break_points_list.append(break_points)
+        break_points_df = pd.DataFrame(break_points_list, columns=['cross_section_id', 'pos', 'neg', 'peak_ids'])
         combined = break_points_df['pos'].dropna().to_list() + break_points_df['neg'].dropna().to_list()
         self.break_points_df = self.cross_sections_df.loc[self.cross_sections_df['point_id'].isin(combined)]
 
@@ -66,7 +81,10 @@ class Subbasin:
         self.hand_threshold = self.break_points_df['hand'].quantile(.8)
 
     def delineate_valley_floor(self):
-        values = hand.where(hand < threshold) 
+        hand = self.dataset['hand']
+        threshold = self.hand_threshold
+
+        values = hand.where(hand < threshold)
         values = values.where(np.isnan(values), 1)
         values = values.where(~np.isnan(values), 0)
         values = (values > 0).astype(int)
@@ -84,9 +102,9 @@ class Subbasin:
         #values.data = values.data.astype(np.uint8)
 
         # polygonize
-        polygons = polygonize(values)
+        polygons = _polygonize(values)
         polygons = gpd.GeoDataFrame(geometry=polygons, crs=3310)
-        polygons['geometry'] = polygons['geometry'].apply(close_holes)
+        polygons['geometry'] = polygons['geometry'].apply(_close_holes)
         # convert to multipolygon or single polygon
         if len(polygons) > 1:
             polygon = MultiPolygon(polygons['geometry'].values)
@@ -102,7 +120,12 @@ class Subbasin:
         self.delineate_valley_floor()
         pass
 
-def _rioxarray_sample_points(data, points):
+    def plot_breakpoints(self, odir):
+        # TODO: create matplotlib figure with cross section points and breakpoints for each cross section
+        # and dump into folder (odir)
+        pass
+
+def _rioxarray_sample_points(raster, points, method='nearest'):
     xs = xr.DataArray(points.geometry.x.values, dims='z')
     ys = xr.DataArray(points.geometry.y.values, dims='z')
     values = raster.sel(x=xs, y=ys, method=method).values
@@ -125,3 +148,4 @@ def _polygonize(raster):
             if value == 1:  #
                 polygons.append(shape(geom))
     os.remove('temp.tif')
+    return polygons
