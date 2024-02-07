@@ -19,13 +19,16 @@ def get_dem_and_flowlines(huc12):
 
     return dem, flowlines_mr
 
-huc12 = "180600060101"
-odir = f"../sampledata/{huc12}/"
+def get_huc12(huc12, odir="../sampledata/"):
+    odir = os.path.join(odir, huc12)
+    if not os.path.exists(odir):
+        os.makedirs(odir)
+    dem, flowlines_mr = get_dem_and_flowlines(huc12)
+    dem.rio.to_raster(os.path.join(odir, "dem.tif"))
+    flowlines_mr.to_file(os.path.join(odir, "flowlines_mr.shp"))
 
-dem, flowlines_mr = get_dem_and_flowlines(huc12)
+huc12s = ["180600060101", "180400060301", "180701060201"]
+for huc12 in huc12s:
+    print(huc12)
+    get_huc12(huc12)
 
-if not os.path.exists(odir):
-    os.makedirs(odir)
-
-dem.rio.to_raster(os.path.join(odir, "dem.tif"))
-flowlines_mr.to_file(os.path.join(odir, "flowlines_mr.shp"))

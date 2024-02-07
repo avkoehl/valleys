@@ -85,15 +85,14 @@ class Subbasin:
         hand_values = hand_values[hand_values <  50]
 
         # set threshold
-        self.hand_threshold = hand_values.quantile(.6)
+        self.hand_threshold = hand_values.quantile(.7)
 
     def delineate_valley_floor(self):
         hand = self.dataset['hand']
         threshold = self.hand_threshold
 
         values = _apply_threshold_and_fill_holes(hand, threshold)
-        # TODO why this broke?
-        # values = _combine_with_slope_threshold(values, self.dataset['slope'], 30)
+        values = _combine_with_slope_threshold(values, self.dataset['slope'], 30)
         
         # polygonize
         polygons = _polygonize(values)
@@ -143,7 +142,7 @@ class Subbasin:
         pass
 
 def _combine_with_slope_threshold(binary_raster, slope_raster, slope_threshold):
-    values = values.where((slope < slope_threshold) & (values == 1))
+    values = binary_raster.where((slope_raster < slope_threshold) & (binary_raster == 1))
     values.data = values.data.astype(np.uint8)
     values.data = scipy.ndimage.binary_fill_holes(values.data)
     values = values.where(values != 0)

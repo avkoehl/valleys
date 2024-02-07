@@ -3,6 +3,7 @@ import shutil
 
 import geopandas as gpd
 import numpy as np
+import pandas as pd
 import rioxarray
 
 from valleys.utils import setup_wbt
@@ -36,6 +37,7 @@ watershed.process_watershed(wbt)
 
 # ------------ Valleys ------------
 valley_floors = []
+bps = []
 for sid in watershed.get_subbasin_ids():
     print(sid)
     subbasin_data, flowline = watershed.clip_to_subbasin(sid)
@@ -45,11 +47,10 @@ for sid in watershed.get_subbasin_ids():
     subbasin.valley_floor_by_breakpoints_full_workflow()
 
     valley_floors.append((sid, subbasin.valley_floor_polygon))
+    bps.append(subbasin.break_points_df)
 
-# save breakpoints
-# debug slope threshold
-
-# combine
 valley_floors_df = gpd.GeoDataFrame(valley_floors, columns=['subbasin_id', 'geometry'], crs=3310)
-valley_floors_df.to_file("valleys.shp")
+valley_floors_df.to_file("./data/outputs/valleys.shp")
+
+pd.concat(bps).to_file("breakpoints.shp")
 
