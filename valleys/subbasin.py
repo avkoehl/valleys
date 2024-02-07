@@ -78,52 +78,89 @@ class Subbasin:
         self.break_points_df = self.cross_sections_df.loc[self.cross_sections_df['point_id'].isin(combined)]
 
     def determine_hand_threshold(self):
-        self.hand_threshold = self.break_points_df['hand'].quantile(.8)
+        hand_values = self.break_points_df['hand']
+
+        # remove outliers
+        hand_values = hand_values[hand_values <  hand_values.quantile(.95)]
+        hand_values = hand_values[hand_values <  50]
+
+        # set threshold
+        self.hand_threshold = hand_values.quantile(.6)
 
     def delineate_valley_floor(self):
         hand = self.dataset['hand']
         threshold = self.hand_threshold
 
-        values = hand.where(hand < threshold)
-        values = values.where(np.isnan(values), 1)
-        values = values.where(~np.isnan(values), 0)
-        values = (values > 0).astype(int)
+        values = _apply_threshold_and_fill_holes(hand, threshold)
+        # TODO why this broke?
+        # values = _combine_with_slope_threshold(values, self.dataset['slope'], 30)
         
-        # fill
-        values.data = scipy.ndimage.binary_fill_holes(values.data)
-        values = values.where(values != 0)
-        
-        # TODO: redo this filter, for now ignored because slope raster isn't quite right -
-        # its too small, has different dimensions than the hand raster
-        # in future will calculate terrain rasters on the basin not the subbasin
-        # store as a dataset rather than a bunch of files
-        # filter by slope
-        # values = values.where((slope < slope_threshold) & (values == 1))
-        #values.data = values.data.astype(np.uint8)
-
         # polygonize
         polygons = _polygonize(values)
         polygons = gpd.GeoDataFrame(geometry=polygons, crs=3310)
         polygons['geometry'] = polygons['geometry'].apply(_close_holes)
+
         # convert to multipolygon or single polygon
         if len(polygons) > 1:
             polygon = MultiPolygon(polygons['geometry'].values)
             self.valley_floor_polygon = polygon
-        self.valley_floor_polygon = polygons['geometry'].iloc[0]
-        self.valley_floor_raster = values
-        pass
 
-    def valley_floor_full_workflow(self):
+        if len(polygons) == 1:
+            self.valley_floor_polygon = polygons['geometry'].iloc[0]
+            self.valley_floor_polygon = polygons['geometry'].iloc[0]
+            self.valley_floor_raster = values
+
+        return
+
+    def valley_floor_by_breakpoints_full_workflow(self):
         self.sample_cross_section_points()
         self.find_breakpoints()
         self.determine_hand_threshold()
         self.delineate_valley_floor()
         pass
 
+    def valley_floor_slope_threshold_workflow(self):
+        # just use very high hand threshold and trim by slope
+        # TODO
+        pass
+
+    def plot_hand_mean_slope_relation(self, odir):
+        # TODO
+        # try this on whole watershed
+        pass
+
+    def plot_hand_cdf(self, odir):
+        # is self.hand_threshold add that as a vertical line
+        # else plot as normal
+        # try this on whole watershed
+        # TODO
+        pass
+
     def plot_breakpoints(self, odir):
-        # TODO: create matplotlib figure with cross section points and breakpoints for each cross section
+        # TODO 
+        # create matplotlib figure with cross section points and breakpoints for each cross section
         # and dump into folder (odir)
         pass
+
+def _combine_with_slope_threshold(binary_raster, slope_raster, slope_threshold):
+    values = values.where((slope < slope_threshold) & (values == 1))
+    values.data = values.data.astype(np.uint8)
+    values.data = scipy.ndimage.binary_fill_holes(values.data)
+    values = values.where(values != 0)
+    return values
+
+
+def _apply_threshold_and_fill_holes(raster, threshold):
+    values = raster.where(raster < threshold)
+    values = values.where(np.isnan(values), 1)
+    values = values.where(~np.isnan(values), 0)
+    values = (values > 0).astype(int)
+
+        # fill
+    values.data = scipy.ndimage.binary_fill_holes(values.data)
+    values = values.where(values != 0)
+    return values
+
 
 def _rioxarray_sample_points(raster, points, method='nearest'):
     xs = xr.DataArray(points.geometry.x.values, dims='z')

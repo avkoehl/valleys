@@ -233,6 +233,13 @@ class Watershed:
         self.files['hand'] = files['hand']
         self._update_dataset()
 
+    def get_subbasin_ids(self):
+        if 'subbasins' not in self.dataset:
+            RuntimeError('Need to delineate watershed first')
+        values = np.unique(self.dataset['subbasins'].values)
+        values = values[~np.isnan(values)]
+        return values
+
     def process_watershed(self, wbt):
         self.flow_accumulation_workflow(wbt)
         self.align_flowlines_to_dem(wbt)
