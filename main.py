@@ -60,5 +60,5 @@ huc12s = ['180400060301', '180600060101', '180701060201']
 for huc12 in huc12s:
     dem_file = f"./sampledata/{huc12}/dem.tif"
     nhd_network_file = f"./sampledata/{huc12}/flowlines_mr.shp"
-    odir = f"../data/{huc12}/"
+    odir = f"./data/{huc12}/"
     full_workflow(dem_file, nhd_network_file, wbt, odir)
