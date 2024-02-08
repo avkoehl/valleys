@@ -137,7 +137,7 @@ class Subbasin:
 
     def plot_breakpoints(self, odir):
         # TODO 
-        # create matplotlib figure with cross section points and breakpoints for each cross section
+        # create matplotlib figure with cross section points and breakpoints and peaks and 'channel' for each cross section
         # and dump into folder (odir)
         pass
 
