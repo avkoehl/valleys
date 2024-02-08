@@ -27,7 +27,9 @@ def delineate_valleys(watershed, odir):
         shutil.rmtree(odir)
     os.makedirs(odir)
 
-    valley_floors = []
+    valley_floors_1 = []
+    valley_floors_2 = []
+    valley_floors_3 = []
     bps = []
     for sid in watershed.get_subbasin_ids():
         print(sid)
@@ -35,15 +37,30 @@ def delineate_valleys(watershed, odir):
         subbasin_data = prep_dataset(subbasin_data)
     
         subbasin = Subbasin(subbasin_data, flowline, sid)
-        subbasin.valley_floor_by_breakpoints_full_workflow()
+        subbasin.sample_cross_section_points()
+        subbasin.find_breakpoints()
+        subbasin.determine_hand_threshold()
+
+        # option 1: use hand threshold
+        subbasin.delineate_valley_floor(slope_threshold=None, hand_buffer=0)
+        valley_floors_1.append((sid, subbasin.valley_floor_polygon))
+        # option 2: use hand threshold and slope threshold
+        subbasin.delineate_valley_floor(slope_threshold=25, hand_buffer=0)
+        valley_floors_2.append((sid, subbasin.valley_floor_polygon))
+        # option 3: use hand threshold with buffer and slope threshold
+        subbasin.delineate_valley_floor(slope_threshold=25, hand_buffer=10)
+        valley_floors_3.append((sid, subbasin.valley_floor_polygon))
     
-        valley_floors.append((sid, subbasin.valley_floor_polygon))
         bps.append(subbasin.break_points_df)
     
-    valley_floors_df = gpd.GeoDataFrame(valley_floors, columns=['subbasin_id', 'geometry'], crs=3310)
+    valley_floors_df_1 = gpd.GeoDataFrame(valley_floors_1, columns=['subbasin_id', 'geometry'], crs=3310)
+    valley_floors_df_2 = gpd.GeoDataFrame(valley_floors_2, columns=['subbasin_id', 'geometry'], crs=3310)
+    valley_floors_df_3 = gpd.GeoDataFrame(valley_floors_3, columns=['subbasin_id', 'geometry'], crs=3310)
     bps = pd.concat(bps)
 
-    valley_floors_df.to_file(os.path.join(odir, "valleys.shp"))
+    valley_floors_df_1.to_file(os.path.join(odir, "valleys_hand.shp"))
+    valley_floors_df_2.to_file(os.path.join(odir, "valleys_slope.shp"))
+    valley_floors_df_3.to_file(os.path.join(odir, "valleys_buffer_and_slope.shp"))
     bps.to_file(os.path.join(odir, "breakpoints.shp"))
 
 def full_workflow(dem_file, nhd_network_file, wbt, odir):
