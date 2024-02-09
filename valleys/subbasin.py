@@ -18,8 +18,6 @@ delineate_valley_floor
 valley_floor_full_workflow
 
 """
-import warnings
-warnings.filterwarnings('error', message='.*convert_dtype.*')
 import os
 
 import geopandas as gpd
@@ -95,9 +93,9 @@ class Subbasin:
     def delineate_valley_floor(self, quantile=0.7, buffer=0, slope_threshold=None):
         hand = self.dataset['hand']
         self._determine_hand_threshold(quantile)
-        hand_threshold = self.hand_threshold + buffer
+        self.hand_threshold = self.hand_threshold + buffer
 
-        values = self._apply_thresholds_and_fill_holes(hand_threshold, slope_threshold)
+        values = self._apply_thresholds_and_fill_holes(self.hand_threshold, slope_threshold)
         self.valley_floor_raster = values
         
         # polygonize

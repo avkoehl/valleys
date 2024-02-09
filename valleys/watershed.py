@@ -240,6 +240,15 @@ class Watershed:
         values = values[~np.isnan(values)]
         return values
 
+    def flood_and_filter(self, hand_threshold = 50, slope_threshold=25):
+        if 'hand' not in self.dataset or 'slope' not in self.dataset:
+            RuntimeError('Need to compute hand and slope first')
+
+        hand = self.dataset['hand']
+        slope = self.dataset['slope']
+        mask = (hand <= hand_threshold) & (slope <= slope_threshold)
+        return hand.where(mask)
+
     def process_watershed(self, wbt):
         self.flow_accumulation_workflow(wbt)
         self.align_flowlines_to_dem(wbt)
