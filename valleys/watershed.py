@@ -251,7 +251,8 @@ def _find_seed_points(nhd_network):
     # filter flow lines
     nhd_network = nhd_network.loc[nhd_network['FTYPE'] == 'StreamRiver']
     nhd_network = nhd_network.loc[~((nhd_network['StartFlag'] == 1) & (nhd_network['LENGTHKM'] < 1))]
-    seed_points = nhd_network.loc[nhd_network['StartFlag'] == 1]['geometry'].apply(lambda x: Point(x.coords[0]))
+    seed_points = [Point(x.coords[0]) for x in nhd_network.loc[nhd_network['StartFlag'] == 1]['geometry']]
+    seed_points = gpd.GeoSeries(seed_points, crs=nhd_network.crs)
     return seed_points
 
 def _chomp_raster(raster):

@@ -27,11 +27,10 @@ def delineate_valleys(watershed, odir):
         shutil.rmtree(odir)
     os.makedirs(odir)
 
-    valley_floors_1 = []
-    valley_floors_2 = []
-    valley_floors_3 = []
     bps = []
+    results_list = []
     for sid in watershed.get_subbasin_ids():
+        results = {}
         print(sid)
         subbasin_data, flowline = watershed.clip_to_subbasin(sid)
         subbasin_data = prep_dataset(subbasin_data)
@@ -39,29 +38,75 @@ def delineate_valleys(watershed, odir):
         subbasin = Subbasin(subbasin_data, flowline, sid)
         subbasin.sample_cross_section_points()
         subbasin.find_breakpoints()
-        subbasin.determine_hand_threshold()
 
-        # option 1: use hand threshold
-        subbasin.delineate_valley_floor(slope_threshold=None, hand_buffer=0)
-        valley_floors_1.append((sid, subbasin.valley_floor_polygon))
-        # option 2: use hand threshold and slope threshold
-        subbasin.delineate_valley_floor(slope_threshold=25, hand_buffer=0)
-        valley_floors_2.append((sid, subbasin.valley_floor_polygon))
-        # option 3: use hand threshold with buffer and slope threshold
-        subbasin.delineate_valley_floor(slope_threshold=25, hand_buffer=10)
-        valley_floors_3.append((sid, subbasin.valley_floor_polygon))
-    
+        results['subbasin_id'] = sid
+
+        # options:
+        #  quantile = 0.5
+        #  quantile = 0.5 slope_threshold = 25
+        #  quantile = 0.5 slope_threshold = 25 buffer = 5
+        subbasin.delineate_valley_floor(quantile=0.5, slope_threshold=None, buffer=0)
+        results['q50_s0_b0'] = subbasin.valley_floor_polygon
+
+        subbasin.delineate_valley_floor(quantile=0.5, slope_threshold=25, buffer=0)
+        results['q50_s25_b0'] = subbasin.valley_floor_polygon
+
+        subbasin.delineate_valley_floor(quantile=0.5, slope_threshold=25, buffer=5)
+        results['q50_s25_b5'] = subbasin.valley_floor_polygon
+
+
+        #  quantile = 0.75  
+        #  quantile = 0.75 slope_threshold = 25
+        #  quantile = 0.75 slope_threshold = 25 buffer = 5
+        subbasin.delineate_valley_floor(quantile=0.75, slope_threshold=None, buffer=0)
+        results['q75_s0_b0'] = subbasin.valley_floor_polygon
+
+        subbasin.delineate_valley_floor(quantile=0.75, slope_threshold=25, buffer=0)
+        results['q75_s25_b0'] = subbasin.valley_floor_polygon
+
+        subbasin.delineate_valley_floor(quantile=0.75, slope_threshold=25, buffer=5)
+        results['q75_s25_b5'] = subbasin.valley_floor_polygon
+
+        #  quantile = 0.95  
+        #  quantile = 0.95  slope_threshold = 25
+        #  quantile = 0.95  slope_threshold = 25 buffer = 5
+        subbasin.delineate_valley_floor(quantile=0.95, slope_threshold=None, buffer=0)
+        results['q95_s0_b0'] = subbasin.valley_floor_polygon
+
+        subbasin.delineate_valley_floor(quantile=0.95, slope_threshold=25, buffer=0)
+        results['q95_s25_b0'] = subbasin.valley_floor_polygon
+
+        subbasin.delineate_valley_floor(quantile=0.95, slope_threshold=25, buffer=5)
+        results['q95_s25_b5'] = subbasin.valley_floor_polygon
+
+        results_list.append(results)
         bps.append(subbasin.break_points_df)
-    
-    valley_floors_df_1 = gpd.GeoDataFrame(valley_floors_1, columns=['subbasin_id', 'geometry'], crs=3310)
-    valley_floors_df_2 = gpd.GeoDataFrame(valley_floors_2, columns=['subbasin_id', 'geometry'], crs=3310)
-    valley_floors_df_3 = gpd.GeoDataFrame(valley_floors_3, columns=['subbasin_id', 'geometry'], crs=3310)
+
+    df = pd.DataFrame.from_records(results_list)
+    q50_s0_b0 = gpd.GeoDataFrame(df[['subbasin_id', 'q50_s0_b0']], geometry='q50_s0_b0',  crs=3310)
+    q50_s25_b0 = gpd.GeoDataFrame(df[['subbasin_id', 'q50_s25_b0']], geometry='q50_s25_b0',  crs=3310)
+    q50_s25_b5 = gpd.GeoDataFrame(df[['subbasin_id', 'q50_s25_b5']], geometry='q50_s25_b5',  crs=3310)
+    q75_s0_b0 = gpd.GeoDataFrame(df[['subbasin_id', 'q75_s0_b0']], geometry='q75_s0_b0',  crs=3310)
+    q75_s25_b0 = gpd.GeoDataFrame(df[['subbasin_id', 'q75_s25_b0']], geometry='q75_s25_b0',  crs=3310)
+    q75_s25_b5 = gpd.GeoDataFrame(df[['subbasin_id', 'q75_s25_b5']], geometry='q75_s25_b5',  crs=3310)
+    q95_s0_b0 = gpd.GeoDataFrame(df[['subbasin_id', 'q95_s0_b0']], geometry='q95_s0_b0',  crs=3310)
+    q95_s25_b0 = gpd.GeoDataFrame(df[['subbasin_id', 'q95_s25_b0']], geometry='q95_s25_b0',  crs=3310)
+    q95_s25_b5 = gpd.GeoDataFrame(df[['subbasin_id', 'q95_s25_b5']], geometry='q95_s25_b5',  crs=3310)
     bps = pd.concat(bps)
 
-    valley_floors_df_1.to_file(os.path.join(odir, "valleys_hand.shp"))
-    valley_floors_df_2.to_file(os.path.join(odir, "valleys_slope.shp"))
-    valley_floors_df_3.to_file(os.path.join(odir, "valleys_buffer_and_slope.shp"))
+    q50_s0_b0.to_file(os.path.join(odir, "q50_s0_b0.shp"))
+    q50_s25_b0.to_file(os.path.join(odir, "q50_s25_b0.shp"))
+    q50_s25_b5.to_file(os.path.join(odir, "q50_s25_b5.shp"))
+    q75_s0_b0.to_file(os.path.join(odir, "q75_s0_b0.shp"))
+    q75_s25_b0.to_file(os.path.join(odir, "q75_s25_b0.shp"))
+    q75_s25_b5.to_file(os.path.join(odir, "q75_s25_b5.shp"))
+    q95_s0_b0.to_file(os.path.join(odir, "q95_s0_b0.shp"))
+    q95_s25_b0.to_file(os.path.join(odir, "q95_s25_b0.shp"))
+    q95_s25_b5.to_file(os.path.join(odir, "q95_s25_b5.shp"))
+
     bps.to_file(os.path.join(odir, "breakpoints.shp"))
+    watershed.dataset['dem'].rio.to_raster(os.path.join(odir, "dem.tif"))
+    watershed.dataset['flowpaths_identified'].rio.to_raster(os.path.join(odir, "streams.tif"))
 
 def full_workflow(dem_file, nhd_network_file, wbt, odir):
     dem = rioxarray.open_rasterio(dem_file)

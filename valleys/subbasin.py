@@ -18,6 +18,8 @@ delineate_valley_floor
 valley_floor_full_workflow
 
 """
+import warnings
+warnings.filterwarnings('error', message='.*convert_dtype.*')
 import os
 
 import geopandas as gpd
@@ -50,13 +52,16 @@ class Subbasin:
         self.valley_floor_polygon = None
         self.valley_floor_raster = None
 
-    def _preprocess_flowline(self):
-        self.flowline = self.flowline.simplify(20)
+    def _preprocess_flowline(self, tolerance=20):
+        if tolerance:
+            self.flowline = self.flowline.simplify(20)
+        else:
+            self.flowline = self.flowline
     
-    def sample_cross_section_points(self):
+    def sample_cross_section_points(self, tolerance=20, xs_spacing=20, xs_width=500, xs_point_spacing=10):
         self._preprocess_flowline()
 
-        points = get_cross_section_points(self.flowline, xs_spacing=20, xs_width=500, xs_point_spacing=10)
+        points = get_cross_section_points(self.flowline, xs_spacing=xs_spacing, xs_width=xs_width, xs_point_spacing=xs_point_spacing)
         points['point_id'] = np.arange(len(points))
 
         for data_layer in self.dataset.data_vars:
@@ -77,19 +82,21 @@ class Subbasin:
         combined = break_points_df['pos'].dropna().to_list() + break_points_df['neg'].dropna().to_list()
         self.break_points_df = self.cross_sections_df.loc[self.cross_sections_df['point_id'].isin(combined)]
 
-    def determine_hand_threshold(self):
+    def _determine_hand_threshold(self, quantile=0.7):
         hand_values = self.break_points_df['hand']
 
         # remove outliers
-        hand_values = hand_values[hand_values <  hand_values.quantile(.95)]
+        # hand_values = hand_values[hand_values <  hand_values.quantile(.95)]
         hand_values = hand_values[hand_values <  50]
 
         # set threshold
-        self.hand_threshold = hand_values.quantile(.7)
+        self.hand_threshold = hand_values.quantile(quantile)
 
-    def delineate_valley_floor(self, slope_threshold=25, hand_buffer=0):
+    def delineate_valley_floor(self, quantile=0.7, buffer=0, slope_threshold=None):
+        hand = self.dataset['hand']
+        self._determine_hand_threshold(quantile)
+        hand_threshold = self.hand_threshold + buffer
 
-        hand_threshold = self.hand_threshold + hand_buffer
         values = self._apply_thresholds_and_fill_holes(hand_threshold, slope_threshold)
         self.valley_floor_raster = values
         
@@ -97,8 +104,8 @@ class Subbasin:
         # binarize to 0 and 1
         values = (values > 0).astype(np.uint8)
         polygons = _polygonize(values)
+        polygons = [_close_holes(p) for p in polygons]
         polygons = gpd.GeoDataFrame(geometry=polygons, crs=3310)
-        polygons['geometry'] = polygons['geometry'].apply(_close_holes)
         # remove polygons that dont intersect the flowline
         polygons = polygons.loc[polygons.intersects(self.flowline)]
 
@@ -137,11 +144,14 @@ class Subbasin:
         values = values.where(values != 1, self.subbasin_id)
         return values
 
-    def valley_floor_by_breakpoints_full_workflow(self):
-        self.sample_cross_section_points()
+    def valley_floor_by_breakpoints_full_workflow(self, tolerance=20, xs_spacing=20,
+                                                  xs_width=500, xs_point_spacing=10,
+                                                  quantile=0.7, buffer=0, 
+                                                  slope_threshold=None):
+        self.sample_cross_section_points(tolerance=tolerance, xs_spacing=xs_spacing, 
+                                         xs_width=xs_width, xs_point_spacing=xs_point_spacing)
         self.find_breakpoints()
-        self.determine_hand_threshold()
-        self.delineate_valley_floor()
+        self.delineate_valley_floor(quantile=quantile, buffer=buffer, slope_threshold=slope_threshold)
         return
     
 def _rioxarray_sample_points(raster, points, method='nearest'):
