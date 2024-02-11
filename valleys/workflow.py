@@ -9,9 +9,10 @@ def delinate_valleys(watershed,
                      xs_point_spacing = 10,
                      quantile = 0.75,
                      buffer = 3,
-                     slope_threshold = 15):
+                     slope_threshold = 20):
 
     results = []
+    redo = []
     for sid in watershed.get_subbasin_ids():
         subbasin_data, flowline = watershed.clip_to_subbasin(sid)
         subbasin_data = prep_dataset(subbasin_data)
@@ -27,7 +28,20 @@ def delinate_valleys(watershed,
                 slope_threshold = slope_threshold)
         poly = subbasin.valley_floor_polygon
         threshold = subbasin.hand_threshold
+        if threshold is None:
+            redo.append(sid)
+
+        if threshold is not None:
+            results.append((sid, poly, threshold, quantile, buffer, slope_threshold))
+    hand_thresholds = [r[2] for r in results]
+    mean = sum(hand_thresholds) / len(hand_thresholds)
+    for sid in redo:
+        subbasin_data, flowline = watershed.clip_to_subbasin(sid)
+        subbasin_data = prep_dataset(subbasin_data)
+        subbasin = Subbasin(subbasin_data, flowline, sid)
+        subbasin.delineate_valley_floor(buffer=buffer, slope_threshold=slope_threshold, overwrite_hand=mean)
         results.append((sid, poly, threshold, quantile, buffer, slope_threshold))
+
     df = gpd.GeoDataFrame(results, columns=['ID', 'floor', 'HAND', 'quantile', 'buffer', 'max_slope'], geometry='floor')
     return df
 
