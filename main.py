@@ -13,10 +13,10 @@ from valleys.workflow import delinate_valleys
 from valleys.watershed import Watershed
 from valleys.subbasin import Subbasin
 
-dem_file = './data/1803001003/dem.tif'
-nhd_network_file = './data/1803001003/flowlines_mr.shp'
+dem_file = './data/1802012804/dem.tif'
+nhd_network_file = './data/1802012804/flowlines_mr.shp'
 wbt = setup_wbt('~/opt/WBT/', './data/working/')
-odir = './data/valleys_1803001003/'
+odir = './data/valleys_1802012804/'
 
 if os.path.exists(odir):
     shutil.rmtree(odir)
