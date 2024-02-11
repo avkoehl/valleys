@@ -37,6 +37,7 @@ class Subbasin:
     def __init__(self, dataset, flowline, subbasin_id):
         self.subbasin_id = subbasin_id
         self.flowline = flowline
+        self.flowline_raw = flowline
         self.dataset = dataset
 
         required_datasets = ['elevation', 'slope', 'curvature', 'strm_val', 'hillslopes', 'flow_dir', 'hand']
@@ -90,10 +91,14 @@ class Subbasin:
         # set threshold
         self.hand_threshold = hand_values.quantile(quantile)
 
-    def delineate_valley_floor(self, quantile=0.7, buffer=0, slope_threshold=None):
+    def delineate_valley_floor(self, quantile=0.7, buffer=0, slope_threshold=None, overwrite_hand=False):
         hand = self.dataset['hand']
-        self._determine_hand_threshold(quantile)
-        self.hand_threshold = self.hand_threshold + buffer
+
+        if overwrite_hand:
+            self.hand_threshold = overwrite_hand + buffer
+        else:
+            self._determine_hand_threshold(quantile)
+            self.hand_threshold = self.hand_threshold + buffer
 
         values = self._apply_thresholds_and_fill_holes(self.hand_threshold, slope_threshold)
         self.valley_floor_raster = values
@@ -105,7 +110,7 @@ class Subbasin:
         polygons = [_close_holes(p) for p in polygons]
         polygons = gpd.GeoDataFrame(geometry=polygons, crs=3310)
         # remove polygons that dont intersect the flowline
-        polygons = polygons.loc[polygons.intersects(self.flowline)]
+        polygons = polygons.loc[polygons.intersects(self.flowline_raw)]
 
         # convert to multipolygon or single polygon
         if len(polygons) > 1:
@@ -135,8 +140,7 @@ class Subbasin:
             values.data = scipy.ndimage.binary_fill_holes(values.data)
     
         # burnin streams
-        stream_inds = np.where(self.dataset['strm_val'] > 0)
-        values.data[stream_inds] = 1
+        values = values.where(self.dataset['strm_val'] != self.subbasin_id, 1)
     
         # assign subbasin id to valley floor
         values = values.where(values != 1, self.subbasin_id)
