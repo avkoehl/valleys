@@ -2,7 +2,9 @@ import geopandas as gpd
 
 from valleys.subbasin import Subbasin
 
-def delinate_valleys(watershed,
+def 
+
+def delineate_valleys(watershed,
                      tolerance=20,
                      xs_spacing=50,
                      xs_width = 500,
