@@ -1,9 +1,16 @@
+import sys
+
 import toml
 
 from valleys.workflow import full_workflow
 
-CONFIG_FILE = './configs/1801010701.toml'
+if __name__ == '__main__':
+    if len(sys.argv) != 2:
+        print('Usage: python main.py <config_file>')
+        sys.exit(1)
 
-config = toml.load(CONFIG_FILE)
+    CONFIG_FILE = sys.argv[1]
 
-full_workflow(config)
+    config = toml.load(CONFIG_FILE)
+
+    full_workflow(config)
