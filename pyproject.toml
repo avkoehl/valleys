@@ -27,6 +27,7 @@ pygeoutils = {git = "git@github.com:hyriver/pygeoutils.git"}
 pygeohydro = {git = "git@github.com:hyriver/pygeohydro.git"}
 py3dep = {git = "git@github.com:hyriver/py3dep.git"}
 pynhd = {git = "git@github.com:hyriver/pynhd.git"}
+toml = "^0.10.2"
 
 [tool.poetry.group.dev.dependencies]
 ipython = "^8.15.0"

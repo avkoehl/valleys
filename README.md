@@ -1,16 +1,17 @@
-# getting leafmap to work
+# config looks like:
 
-Getting leafmap to work in jupyternotebooks has several undocumented
-dependencies and issues
+```
+wbt_path = '~/opt/WBT/'
+dem_path = 'data/1801010701/dem.tif'
+nhd_mr_path = 'data/1801010701/flowlines_mr.shp'
+output_dir = 'data/test/'
 
-need gdal, ipyleaflet, openEXR, localtileserver, jupyter-contrib-nbextensions
-
-brew install gdal  
-
-then based on the version installed 
-
-poetry add GDAL==<version>
-
-rest should be straight forward with pip
-
-
+[params]
+tolerance = 20 # for the simplification of the flowline
+xs_spacing = 10 # spacing of cross-sections
+xs_width = 500  # total width is twice this value
+xs_point_spacing = 10 # spacing of points along cross-sections
+quantile = 0.75 # sets the hand threshold
+buffer = 2 # add to hand threshold 
+slope_threshold = 14.1 # a little more than 25% slope
+```

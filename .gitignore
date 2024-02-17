@@ -1,4 +1,5 @@
 # Project Directory Structure
+configs/
 data/
 raw_data/
 toy_data/
