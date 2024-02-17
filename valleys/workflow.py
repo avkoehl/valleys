@@ -51,7 +51,7 @@ def full_workflow(config):
     # save config as toml to output dir
     # get current date
     date = datetime.datetime.now().strftime("%Y-%m-%d")
-    with open(os.path.join(output_dir, f'{data}_config.toml'), 'w') as f:
+    with open(os.path.join(output_dir, f'{date}_config.toml'), 'w') as f:
         toml.dump(config, f)
     return 
 
