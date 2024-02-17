@@ -14,4 +14,7 @@ xs_point_spacing = 10 # spacing of points along cross-sections
 quantile = 0.75 # sets the hand threshold
 buffer = 2 # add to hand threshold 
 slope_threshold = 14.1 # a little more than 25% slope
+
+peak_threshold = 0.002
+bp_slope_threshold = 20
 ```

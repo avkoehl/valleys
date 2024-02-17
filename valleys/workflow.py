@@ -14,7 +14,7 @@ def full_workflow(config):
     # store config files as toml
     # required keys in config
     required_keys = ['wbt_path', 'dem_path', 'nhd_mr_path', 'output_dir', 'params']
-    required_keys_params = ['tolerance', 'xs_spacing', 'xs_width', 'xs_point_spacing', 'quantile', 'buffer', 'slope_threshold']
+    required_keys_params = ['tolerance', 'xs_spacing', 'xs_width', 'xs_point_spacing', 'quantile', 'buffer', 'slope_threshold', 'peak_threshold', 'bp_slope_threshold']
     for key in required_keys:
         if key not in config:
             raise ValueError(f'config is missing required key: {key}')
@@ -62,7 +62,10 @@ def delineate_valleys(watershed,
                      xs_point_spacing = 10,
                      quantile = 0.75,
                      buffer = 3,
-                     slope_threshold = 20):
+                     slope_threshold = 20,
+                     peak_threshold = 0.002,
+                     bp_slope_threshold = 20):
+
 
     results = []
     redo = []
@@ -78,7 +81,11 @@ def delineate_valleys(watershed,
                 xs_point_spacing = xs_point_spacing,
                 quantile = quantile,
                 buffer = buffer,
-                slope_threshold = slope_threshold)
+                slope_threshold = slope_threshold,
+                peak_threshold = peak_threshold,
+                bp_slope_threshold = bp_slope_threshold
+                )
+
         poly = subbasin.valley_floor_polygon
         threshold = subbasin.hand_threshold
         if threshold is None:

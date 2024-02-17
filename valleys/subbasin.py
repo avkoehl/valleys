@@ -70,11 +70,11 @@ class Subbasin:
         points = points.loc[~points['slope'].isna()]
         self.cross_sections_df = points
 
-    def find_breakpoints(self):
+    def find_breakpoints(self, peak_threshold=0.002, bp_slope_threshold=20):
         break_points_list = []
         for xs in self.cross_sections_df['cross_section_id'].unique():
             xs_points = self.cross_sections_df.loc[self.cross_sections_df['cross_section_id'] == xs]
-            break_points = find_xs_break_points(xs_points)
+            break_points = find_xs_break_points(xs_points, peak_threshold=peak_threshold, slope_threshold=bp_slope_threshold)
             break_points = (xs, *break_points)
             break_points_list.append(break_points)
         break_points_df = pd.DataFrame(break_points_list, columns=['cross_section_id', 'pos', 'neg', 'peak_ids'])
@@ -149,10 +149,10 @@ class Subbasin:
     def valley_floor_by_breakpoints_full_workflow(self, tolerance=20, xs_spacing=20,
                                                   xs_width=500, xs_point_spacing=10,
                                                   quantile=0.7, buffer=0, 
-                                                  slope_threshold=None):
+                                                  slope_threshold=None, peak_threshold=0.002, bp_slope_threshold=20):
         self.sample_cross_section_points(tolerance=tolerance, xs_spacing=xs_spacing, 
                                          xs_width=xs_width, xs_point_spacing=xs_point_spacing)
-        self.find_breakpoints()
+        self.find_breakpoints(peak_threshold=peak_threshold, bp_slope_threshold=bp_slope_threshold)
         self.delineate_valley_floor(quantile=quantile, buffer=buffer, slope_threshold=slope_threshold)
         return
     
