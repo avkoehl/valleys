@@ -32,6 +32,7 @@ import xarray as xr
 
 from valleys.cross_section import get_cross_section_points
 from valleys.breakpoints import find_xs_break_points
+from valleys.breakpoints import find_xs_break_points_alternate
 
 class Subbasin:
     def __init__(self, dataset, flowline, subbasin_id):
@@ -70,11 +71,17 @@ class Subbasin:
         points = points.loc[~points['slope'].isna()]
         self.cross_sections_df = points
 
-    def find_breakpoints(self, peak_threshold=0.002, bp_slope_threshold=20):
+    def find_breakpoints(self, peak_threshold=0.002, bp_slope_threshold=20, method=None):
         break_points_list = []
         for xs in self.cross_sections_df['cross_section_id'].unique():
             xs_points = self.cross_sections_df.loc[self.cross_sections_df['cross_section_id'] == xs]
-            break_points = find_xs_break_points(xs_points, peak_threshold=peak_threshold, slope_threshold=bp_slope_threshold)
+
+            if method == 'alternate':
+                # this use curvature of the cross section profile not the profile of curvatures
+                break_points = find_xs_break_points_alternate(xs_points, peak_threshold=peak_threshold, slope_threshold=bp_slope_threshold)
+            else:
+                break_points = find_xs_break_points(xs_points, peak_threshold=peak_threshold, slope_threshold=bp_slope_threshold)
+
             break_points = (xs, *break_points)
             break_points_list.append(break_points)
         break_points_df = pd.DataFrame(break_points_list, columns=['cross_section_id', 'pos', 'neg', 'peak_ids'])

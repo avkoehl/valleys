@@ -2,6 +2,21 @@ import geopandas as gpd
 import numpy as np
 import pandas as pd
 from scipy import signal
+from scipy.interpolate import UnivariateSpline
+
+def filter_after_max(profile):
+    # check if the profile has a peak
+    # sometimes that wont be caught in filter_ridge_crossing
+    # keep only points before that peak
+    temp = profile.copy()
+    temp['diff'] = temp['alpha'].abs()
+    # sort on diff column
+    temp = temp.sort_values(by='diff', ascending=True)
+
+    # max elevation ind
+    max_ind = temp['elevation'].argmax()
+    keep = temp.iloc[:max_ind]
+    return profile.loc[profile['point_id'].isin(keep['point_id'])]
 
 def filter_ridge_crossing(profile):
     # check if the profile crosses a ridgeline
@@ -21,7 +36,7 @@ def filter_ridge_crossing(profile):
 
     # find the first point where the ratio is greater than 2
     for i in range(len(temp)):
-        if temp['ratio'].iloc[i] > 3 and temp['hand_diff'].iloc[i] > 20:
+        if temp['ratio'].iloc[i] > 3 and temp['hand_diff'].iloc[i] > 15:
             #            if temp['curvature'].iloc[i] > 0:
             keep = temp.iloc[:i]
             return profile.loc[profile['point_id'].isin(keep['point_id'])]
@@ -110,7 +125,9 @@ def prepare_xsection(xs_points):
 
     # 5. remove points that are passed a ridgeline
     temp_neg = filter_ridge_crossing(temp.loc[temp['alpha'] <= 0])
+    temp_neg = filter_after_max(temp_neg)
     temp_pos = filter_ridge_crossing(temp.loc[temp['alpha'] >= 0])
+    temp_pos = filter_after_max(temp_pos)
     temp = pd.concat([temp_neg, temp_pos])
     # remove duplicate points
     temp = temp.drop_duplicates(subset=['point_id'])
@@ -184,3 +201,28 @@ def find_xs_break_points(df, peak_threshold=0.002, slope_threshold=20):
     neg_bp = find_half_profile_break_point(df.loc[df['alpha'] <= 0], peak_ids, slope_threshold)
 
     return (pos_bp, neg_bp, peak_ids)
+
+def find_xs_break_points_alternate(df, peak_threshold=0.002, slope_threshold=20):
+    # get curvature of elevation profile not profile of curvature
+    # remove duplicates, recenter alpha, and make sure there are enough points
+    df = prepare_xsection(df)
+
+    # if the cross section is not valid, return None
+    if df is None:
+        return (None, None, None)
+
+    y_spl = UnivariateSpline(df['alpha'],df['elevation'],s=0,k=4)
+    y_spl_2d = y_spl.derivative(n=2)
+
+    curvatures = y_spl_2d(df['alpha'])
+    peak_inds, _ = signal.find_peaks(curvatures, height=0)
+
+    peak_ids = df['point_id'].iloc[peak_inds].tolist()
+
+    pos_bp = find_half_profile_break_point(df.loc[df['alpha'] >=0], peak_ids, slope_threshold)
+    neg_bp = find_half_profile_break_point(df.loc[df['alpha'] <= 0], peak_ids, slope_threshold)
+
+    return (pos_bp, neg_bp, peak_ids)
+
+# find half profile break points_alternate
+# get slope from elevation not slope dem

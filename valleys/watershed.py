@@ -17,6 +17,7 @@ methods:
  """
 import os
 import shutil
+import sys
 
 import geopandas as gpd
 import numpy as np
@@ -67,9 +68,9 @@ class Watershed:
             self.files['flow_dir'] = os.path.join(self.working_dir, 'flow_dir.tif')
             self.files['flow_acc'] = os.path.join(self.working_dir, 'flow_acc.tif')
             self._update_dataset()
-
         else:
-            RuntimeError('flow accumulation workflow failed')
+            print('flow accumulation workflow failed')
+            sys.exit(1)
 
     def align_flowlines_to_dem(self, wbt):
         files = {
@@ -114,12 +115,14 @@ class Watershed:
             self._update_dataset()
             self.flowlines = gpd.read_file(files['flowpaths_shp'])
         else:
-            RuntimeError('align flowlines to dem failed')
+            print('align flowlines to dem failed')
+            sys.exit(1)
 
     def watershed_delineation(self, wbt):
         # check if streams_file and flow_dir exist
         if not (os.path.exists(self.files['flowpaths_identified']) and os.path.exists(self.files['flow_dir'])):
-            RuntimeError('Need to align flowlines to dem')
+            print('Need to align flowlines to dem')
+            sys.exit(1)
 
         files = {
                 'subbasins': os.path.join(self.working_dir, 'subbasins.tif'),
@@ -145,7 +148,8 @@ class Watershed:
                 self.files[key] = files[key]
             self._update_dataset()
         else:
-            RuntimeError('watershed delineation failed')
+            print('watershed delineation failed')
+            sys.exit(1)
 
     def derive_terrain_attributes(self, wbt, sigma=1.2):
         files = {
@@ -173,7 +177,8 @@ class Watershed:
                 self.files[key] = files[key]
             self._update_dataset()
         else:
-            RuntimeError('derive terrain attributes failed')
+            print('derive terrain attributes failed')
+            sys.exit(1)
 
     def _update_dataset(self):
         self.dataset = xr.Dataset()
@@ -185,7 +190,8 @@ class Watershed:
     def clip_to_subbasin(self, subbasin_id):
         # check if subbasins in files
         if not os.path.exists(self.files['subbasins']):
-            RuntimeError('Need to delineate watershed first')
+            print('Need to delineate watershed first')
+            sys.exit(1)
 
         clipped = xr.Dataset()
         dem = self.dataset['dem']
@@ -206,7 +212,8 @@ class Watershed:
     def compute_hand(self, wbt):
         # confirm dem, flowpaths, and subbasins exist
         if not (os.path.exists(self.files['dem']) and os.path.exists(self.files['flowpaths']) and os.path.exists(self.files['subbasins'])):
-            RuntimeError('Need to align flowlines to dem and delineate watershed first')
+            print('Need to align flowlines to dem and delineate watershed first')
+            sys.exit(1)
 
         files = {
                 'filled_dem': os.path.join(self.working_dir, 'filled_dem.tif'),
@@ -228,21 +235,25 @@ class Watershed:
                 )
 
         if not os.path.exists(files['filled_dem']) or not os.path.exists(files['hand']):
-            RuntimeError('fill depressions failed, check conditioned_dem')
+            print('fill depressions failed, check conditioned_dem')
+            sys.exit(1)
 
         self.files['hand'] = files['hand']
         self._update_dataset()
 
     def get_subbasin_ids(self):
         if 'subbasins' not in self.dataset:
-            RuntimeError('Need to delineate watershed first')
+            print('Need to delineate watershed first')
+            sys.exit(1)
+
         values = np.unique(self.dataset['subbasins'].values)
         values = values[~np.isnan(values)]
         return values
 
     def flood_and_filter(self, hand_threshold = 50, slope_threshold=25):
         if 'hand' not in self.dataset or 'slope' not in self.dataset:
-            RuntimeError('Need to compute hand and slope first')
+            print('Need to compute hand and slope first')
+            sys.exit(1)
 
         hand = self.dataset['hand']
         slope = self.dataset['slope']
