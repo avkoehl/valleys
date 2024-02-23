@@ -5,55 +5,64 @@ import shutil
 import geopandas as gpd
 import rioxarray
 import toml
+import whitebox
 
-from valleys.subbasin import Subbasin
-from valleys.utils import setup_wbt
-from valleys.watershed import Watershed
+from pyvalleys.subbasin import Subbasin
+from pyvalleys.watershed import Watershed
 
-def full_workflow(config):
-    # store config files as toml
-    # required keys in config
-    required_keys = ['wbt_path', 'dem_path', 'nhd_mr_path', 'output_dir', 'params']
-    required_keys_params = ['tolerance', 'xs_spacing', 'xs_width', 'xs_point_spacing', 'quantile', 'buffer', 'slope_threshold', 'peak_threshold', 'bp_slope_threshold']
-    for key in required_keys:
-        if key not in config:
-            raise ValueError(f'config is missing required key: {key}')
-    for key in required_keys_params:
-        if key not in config['params']:
-            raise ValueError(f'config is missing required key: {key}')
+def setup_wbt(whitebox_dir, working_dir):
+    wbt = whitebox.WhiteboxTools()
+    wbt.set_whitebox_dir(os.path.expanduser(whitebox_dir))
+    
+    working_directory = os.path.abspath(working_dir)
+    if os.path.exists(working_directory):
+            shutil.rmtree(working_directory)
+    os.mkdir(working_directory)
+    wbt.set_working_dir(os.path.abspath(working_directory))
+    wbt.set_verbose_mode(False)
+    return wbt
 
-    WBT_WORK_DIR = os.path.join(config['output_dir'], 'wbt_work_dir')
+def valley_floors(dem_file, flowlines_file, config_file, wbt_path, terrain_dir, ofile):
+    dem, flowlines, config, wbt = setup(dem_file, flowlines_file, config_file, wbt_path, terrain_dir, ofile)
+    watershed = Watershed(dem, flowlines, terrain_dir)
+    watershed.process_watershed(dem)
+    valleys = delineate_valleys(watershed, **config)
+    valleys['date'] = datetime.datetime.now().strftime("%Y-%m-%d")
+    valleys['config'] = config
+    valleys['version'] = valleys.__version__
+    valleys['wbt_version'] = wbt.version()
+    valleys.to_file(ofile)
 
-    # setup directories
-    output_dir = config['output_dir']
-    if os.path.exists(output_dir):
-        shutil.rmtree(output_dir)
-    os.makedirs(output_dir)
-    os.makedirs(WBT_WORK_DIR)
+def setup(dem_file, flowlines_file, config_file, wbt_path, terrain_dir, ofile):
+	# make sure dem_file and flowlines_file exist
+	if not os.path.exists(dem_file):
+		sys.exit(f"DEM file {dem_file} does not exist")
+	if not os.path.exists(flowlines_file):
+		sys.exit(f"Flowlines file {flowlines_file} does not exist")
+	
+	# setup directories and whiteboxtools
+	if not os.path.exists(terrain_dir):
+		os.makedirs(terrain_dir)
 
-    # setup wbt
-    wbt = setup_wbt(config['wbt_path'], WBT_WORK_DIR)
+	# get directory from ofile
+	ofile_dir = os.path.dirname(ofile)
+	if not os.path.exists(ofile_dir):
+		os.makedirs(ofile_dir)
 
-    # load data
-    dem = rioxarray.open_rasterio(config['dem_path'])
-    nhd_mr = gpd.read_file(config['nhd_mr_path'])
+	wbt = setup_wbt(wbt_path, terrain_dir)
 
-    # create watershed and extract valleys
-    watershed = Watershed(dem, nhd_mr, WBT_WORK_DIR)
-    watershed.process_watershed(wbt)
-    valleys = delineate_valleys(watershed, **config['params'])
+	dem = rioxarray.open_rasterio(dem_file)
+	flowlines = gpd.read_file(flowlines_file)
 
-    # save valleys
-    valleys.to_file(os.path.join(output_dir, 'valley_floors.shp'))
-    watershed.dataset.dem.rio.to_raster(os.path.join(output_dir, 'dem.tif'))
-    watershed.dataset.flowpaths_identified.rio.to_raster(os.path.join(output_dir, 'flowpaths.tif'))
+	# parse config_file
+	config = toml.load(config_file)
+	required_keys = ['tolerance', 'xs_spacing', 'xs_width', 'xs_point_spacing', 'quantile', 'buffer', 'slope_threshold', 'peak_threshold', 'bp_slope_threshold']
+	for key in required_keys:
+		if key not in config:
+			raise ValueError(f'config is missing required key: {key}')
+	
+	return dem, flowlines, config, wbt
 
-    # save config as toml to output dir
-    # get current date
-    date = datetime.datetime.now().strftime("%Y-%m-%d")
-    with open(os.path.join(output_dir, f'{date}_config.toml'), 'w') as f:
-        toml.dump(config, f)
-    return 
 
 def delineate_valleys(watershed,
                      tolerance=20,
@@ -102,7 +111,7 @@ def delineate_valleys(watershed,
         subbasin.delineate_valley_floor(buffer=buffer, slope_threshold=slope_threshold, overwrite_hand=mean)
         results.append((sid, poly, threshold, quantile, buffer, slope_threshold))
 
-    df = gpd.GeoDataFrame(results, columns=['ID', 'floor', 'HAND', 'quantile', 'buffer', 'max_slope'], geometry='floor')
+    df = gpd.GeoDataFrame(results, columns=['ID', 'floor', 'HAND', 'quantile', 'buffer', 'max_slope'], geometry='floor', crs=watershed.dataset.dem.rio.crs)
     return df
 
 def prep_dataset(dataset):

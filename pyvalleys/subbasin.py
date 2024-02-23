@@ -30,9 +30,10 @@ from shapely.geometry import Polygon
 from shapely.geometry import MultiPolygon
 import xarray as xr
 
-from valleys.cross_section import get_cross_section_points
-from valleys.breakpoints import find_xs_break_points
-from valleys.breakpoints import find_xs_break_points_alternate
+from pyvalleys.cross_section import get_cross_section_points
+from pyvalleys.breakpoints import find_xs_break_points
+from pyvalleys.breakpoints import find_xs_break_points_alternate
+from pyvalleys.gis import rioxarray_sample_points, close_holes, polygonize_feature
 
 class Subbasin:
     def __init__(self, dataset, flowline, subbasin_id):
@@ -65,7 +66,7 @@ class Subbasin:
         points['point_id'] = np.arange(len(points))
 
         for data_layer in self.dataset.data_vars:
-            points[data_layer] = _rioxarray_sample_points(self.dataset[data_layer], points)
+            points[data_layer] = rioxarray_sample_points(self.dataset[data_layer], points)
 
         points = points.loc[~points['elevation'].isna()]
         points = points.loc[~points['slope'].isna()]
@@ -113,8 +114,8 @@ class Subbasin:
         # polygonize
         # binarize to 0 and 1
         values = (values > 0).astype(np.uint8)
-        polygons = _polygonize(values)
-        polygons = [_close_holes(p) for p in polygons]
+        polygons = polygonize_feature(values, 1) # get polygons where raster value is 1
+        polygons = [close_holes(p) for p in polygons]
         polygons = gpd.GeoDataFrame(geometry=polygons, crs=3310)
         # remove polygons that dont intersect the flowline
         polygons = polygons.loc[polygons.intersects(self.flowline_raw)]
@@ -162,28 +163,3 @@ class Subbasin:
         self.find_breakpoints(peak_threshold=peak_threshold, bp_slope_threshold=bp_slope_threshold)
         self.delineate_valley_floor(quantile=quantile, buffer=buffer, slope_threshold=slope_threshold)
         return
-    
-def _rioxarray_sample_points(raster, points, method='nearest'):
-    xs = xr.DataArray(points.geometry.x.values, dims='z')
-    ys = xr.DataArray(points.geometry.y.values, dims='z')
-    values = raster.sel(x=xs, y=ys, method=method).values
-    return values
-
-def _close_holes(poly):
-    if len(poly.interiors):
-        return Polygon(list(poly.exterior.coords))
-    return poly
-
-def _polygonize(raster):
-    # binary raster 1,0
-    raster.rio.to_raster('temp.tif', dtype=np.uint8)
-    with rasterio.open('temp.tif') as src:
-        raster_array = src.read(1)
-        mask = raster_array == 1
-        
-        polygons = []
-        for geom, value in rasterio.features.shapes(raster_array, mask=mask, transform=src.transform):
-            if value == 1:  #
-                polygons.append(shape(geom))
-    os.remove('temp.tif')
-    return polygons

@@ -1,14 +1,16 @@
 """
 watershed class
 # code for delineating watershed and computing terrain attributes
- - dem
- - flowlines
+ - 'dem',  (raster)
+ - 'flowlines' (shapefile)
  ----
-- dataset: ['dem', 'conditioned_dem', 'smoothed_dem', 'slope', 'curvature', 'streams', 'flow_dir', 'flow_acc', 'subbasin', 'hillslopes', 'hand']
+- dataset: ['dem', 'conditioned_dem', 'smoothed_dem', 
+            'slope', 'curvature', 'flowpaths_identified', 
+            'flow_dir', 'flow_acc', 'subbasin', 'hillslopes', 'hand']
 
 methods:
  - flow_accumulation_workflow
- - align_flowlines_to_dem 
+ - align_flowlines_to_flowdir			
  - watershed_delineation
  - derive_terrain_attributes
  - clip_to_subbasin (returns clipped dataset)
@@ -25,6 +27,7 @@ import rioxarray
 import xarray as xr
 from scipy.ndimage import gaussian_filter
 from shapely.geometry import box, Point
+
 
 class Watershed:
     def __init__(self, dem, flowlines, working_dir):
@@ -72,7 +75,17 @@ class Watershed:
             print('flow accumulation workflow failed')
             sys.exit(1)
 
-    def align_flowlines_to_dem(self, wbt):
+    def align_flowlines_to_flowdir(self, wbt):
+        # check if flow_dir and flow_acc exists
+        if not (os.path.exists(self.files['flow_dir']) and os.path.exists(self.files['flow_acc'])):
+            print('Need to run flow accumulation workflow')
+            sys.exit(1)
+
+        # check if StartFlag exists
+        if 'StartFlag' not in self.flowlines.columns:
+            print('flowlines needs a column called StartFlag')
+            sys.exit(1)
+
         files = {
                 'seed_points': os.path.join(self.working_dir, 'seed_points.shp'),
                 'snapped_seed_points': os.path.join(self.working_dir, 'snapped_seed_points.shp'),
@@ -81,8 +94,13 @@ class Watershed:
                 'flowpaths_shp': os.path.join(self.working_dir, 'flowpaths.shp'),
                 }
 
-        seed_points = _find_seed_points(self.flowlines)
-        seed_points.to_file(files['seed_points'])
+        geoms = self.flowlines.loc[self.flowlines['StartFlag'] == 1]['geometry']
+        seed_points = [Point(x.coords[0]) for x in geoms]
+        seed_points = gpd.Geoseries(seed_points, crs=self.flowlines.crs)
+
+        # save seed points
+        seed_points_file = os.path.join(self.working_dir, 'seed_points.shp')
+        seed_points.to_file(seed_points_file)
 
         wbt.snap_pour_points(
                 files['seed_points'],
@@ -196,7 +214,7 @@ class Watershed:
         clipped = xr.Dataset()
         dem = self.dataset['dem']
         dem_clipped = dem.where(self.dataset['subbasins'] == subbasin_id, drop=True)
-        dem_clipped = _chomp_raster(dem_clipped)
+        dem_clipped = chomp_raster(dem_clipped)
         dem_bounds = box(*dem_clipped.rio.bounds())
         clipped['dem'] = dem_clipped
 
@@ -266,16 +284,3 @@ class Watershed:
         self.watershed_delineation(wbt)
         self.derive_terrain_attributes(wbt)
         self.compute_hand(wbt)
-
-def _find_seed_points(nhd_network):
-    # filter flow lines
-    nhd_network = nhd_network.loc[nhd_network['FTYPE'] == 'StreamRiver']
-    nhd_network = nhd_network.loc[~((nhd_network['StartFlag'] == 1) & (nhd_network['LENGTHKM'] < 1))]
-    seed_points = [Point(x.coords[0]) for x in nhd_network.loc[nhd_network['StartFlag'] == 1]['geometry']]
-    seed_points = gpd.GeoSeries(seed_points, crs=nhd_network.crs)
-    return seed_points
-
-def _chomp_raster(raster):
-    raster = raster.dropna(dim='x', how='all')
-    raster = raster.dropna(dim='y', how='all')
-    return raster
