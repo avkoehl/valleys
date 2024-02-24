@@ -1,6 +1,7 @@
 import rasterio
 from rasterio import features
-import rioxarray as xr
+import xarray as xr
+from shapely.geometry import shape, Polygon
 
 def rioxarray_sample_points(raster, points, method='nearest'):
     xs = xr.DataArray(points.geometry.x.values, dims='z')
@@ -24,7 +25,7 @@ def polygonize_feature(raster, feature_value=1):
     mask = raster == feature_value
         
     polygons = []
-    for geom, _ in features.shapes(raster_array, mask=mask, transform=src.transform):
+    for geom, value in features.shapes(raster, mask=mask, transform=raster.rio.transform()):
         if value == feature_value:  #
             # load the geometry as a shapely Polygon and append to the list
            polygons.append(shape(geom))

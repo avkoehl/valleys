@@ -28,6 +28,8 @@ import xarray as xr
 from scipy.ndimage import gaussian_filter
 from shapely.geometry import box, Point
 
+from pyvalleys.gis import chomp_raster
+
 
 class Watershed:
     def __init__(self, dem, flowlines, working_dir):
@@ -96,7 +98,7 @@ class Watershed:
 
         geoms = self.flowlines.loc[self.flowlines['StartFlag'] == 1]['geometry']
         seed_points = [Point(x.coords[0]) for x in geoms]
-        seed_points = gpd.Geoseries(seed_points, crs=self.flowlines.crs)
+        seed_points = gpd.GeoSeries(seed_points, crs=self.flowlines.crs)
 
         # save seed points
         seed_points_file = os.path.join(self.working_dir, 'seed_points.shp')
@@ -280,7 +282,7 @@ class Watershed:
 
     def process_watershed(self, wbt):
         self.flow_accumulation_workflow(wbt)
-        self.align_flowlines_to_dem(wbt)
+        self.align_flowlines_to_flowdir(wbt)
         self.watershed_delineation(wbt)
         self.derive_terrain_attributes(wbt)
         self.compute_hand(wbt)

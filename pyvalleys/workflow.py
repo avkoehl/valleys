@@ -25,22 +25,23 @@ def setup_wbt(whitebox_dir, working_dir):
 def valley_floors(dem_file, flowlines_file, config_file, wbt_path, terrain_dir, ofile):
     dem, flowlines, config, wbt, terrain_dir, ofile = setup(dem_file, flowlines_file, config_file, wbt_path, terrain_dir, ofile)
     watershed = Watershed(dem, flowlines, terrain_dir)
-    watershed.process_watershed(dem)
+    watershed.process_watershed(wbt)
     valleys = delineate_valleys(watershed, **config)
     valleys['date'] = datetime.datetime.now().strftime("%Y-%m-%d")
     valleys['config'] = config
-    valleys['version'] = valleys.__version__
-    valleys['wbt_version'] = wbt.version()
     valleys.to_file(ofile)
+
+def convert_to_absolute_path(filename):
+    return os.path.abspath(os.path.expanduser(filename))
 
 def setup(dem_file, flowlines_file, config_file, wbt_path, terrain_dir, ofile):
     # convert to absolute paths
-    dem_file = os.path.abspath(dem_file)
-    flowlines_file = os.path.abspath(flowlines_file)
-    config_file = os.path.abspath(config_file)
-    wbt_path = os.path.abspath(wbt_path)
-    terrain_dir = os.path.abspath(terrain_dir)
-    ofile = os.path.abspath(ofile)
+    dem_file = convert_to_absolute_path(dem_file)
+    flowlines_file = convert_to_absolute_path(flowlines_file)
+    config_file = convert_to_absolute_path(config_file)
+    wbt_path = convert_to_absolute_path(wbt_path)
+    terrain_dir = convert_to_absolute_path(terrain_dir)
+    ofile = convert_to_absolute_path(ofile)
 
     # make sure dem_file and flowlines_file exist
     if not os.path.exists(dem_file):
