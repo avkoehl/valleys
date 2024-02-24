@@ -23,7 +23,7 @@ def setup_wbt(whitebox_dir, working_dir):
     return wbt
 
 def valley_floors(dem_file, flowlines_file, config_file, wbt_path, terrain_dir, ofile):
-    dem, flowlines, config, wbt = setup(dem_file, flowlines_file, config_file, wbt_path, terrain_dir, ofile)
+    dem, flowlines, config, wbt, terrain_dir, ofile = setup(dem_file, flowlines_file, config_file, wbt_path, terrain_dir, ofile)
     watershed = Watershed(dem, flowlines, terrain_dir)
     watershed.process_watershed(dem)
     valleys = delineate_valleys(watershed, **config)
@@ -34,6 +34,14 @@ def valley_floors(dem_file, flowlines_file, config_file, wbt_path, terrain_dir, 
     valleys.to_file(ofile)
 
 def setup(dem_file, flowlines_file, config_file, wbt_path, terrain_dir, ofile):
+    # convert to absolute paths
+    dem_file = os.path.abspath(dem_file)
+    flowlines_file = os.path.abspath(flowlines_file)
+    config_file = os.path.abspath(config_file)
+    wbt_path = os.path.abspath(wbt_path)
+    terrain_dir = os.path.abspath(terrain_dir)
+    ofile = os.path.abspath(ofile)
+
 	# make sure dem_file and flowlines_file exist
 	if not os.path.exists(dem_file):
 		sys.exit(f"DEM file {dem_file} does not exist")
@@ -61,7 +69,7 @@ def setup(dem_file, flowlines_file, config_file, wbt_path, terrain_dir, ofile):
 		if key not in config:
 			raise ValueError(f'config is missing required key: {key}')
 	
-	return dem, flowlines, config, wbt
+	return dem, flowlines, config, wbt, terrain_dir, ofile
 
 
 def delineate_valleys(watershed,
