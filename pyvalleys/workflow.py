@@ -42,34 +42,34 @@ def setup(dem_file, flowlines_file, config_file, wbt_path, terrain_dir, ofile):
     terrain_dir = os.path.abspath(terrain_dir)
     ofile = os.path.abspath(ofile)
 
-	# make sure dem_file and flowlines_file exist
-	if not os.path.exists(dem_file):
-		sys.exit(f"DEM file {dem_file} does not exist")
-	if not os.path.exists(flowlines_file):
-		sys.exit(f"Flowlines file {flowlines_file} does not exist")
-	
-	# setup directories and whiteboxtools
-	if not os.path.exists(terrain_dir):
-		os.makedirs(terrain_dir)
+    # make sure dem_file and flowlines_file exist
+    if not os.path.exists(dem_file):
+        sys.exit(f"DEM file {dem_file} does not exist")
+    if not os.path.exists(flowlines_file):
+        sys.exit(f"Flowlines file {flowlines_file} does not exist")
 
-	# get directory from ofile
-	ofile_dir = os.path.dirname(ofile)
-	if not os.path.exists(ofile_dir):
-		os.makedirs(ofile_dir)
+    # setup directories and whiteboxtools
+    if not os.path.exists(terrain_dir):
+        os.makedirs(terrain_dir)
 
-	wbt = setup_wbt(wbt_path, terrain_dir)
+    # get directory from ofile
+    ofile_dir = os.path.dirname(ofile)
+    if not os.path.exists(ofile_dir):
+        os.makedirs(ofile_dir)
 
-	dem = rioxarray.open_rasterio(dem_file)
-	flowlines = gpd.read_file(flowlines_file)
+    wbt = setup_wbt(wbt_path, terrain_dir)
 
-	# parse config_file
-	config = toml.load(config_file)
-	required_keys = ['tolerance', 'xs_spacing', 'xs_width', 'xs_point_spacing', 'quantile', 'buffer', 'slope_threshold', 'peak_threshold', 'bp_slope_threshold']
-	for key in required_keys:
-		if key not in config:
-			raise ValueError(f'config is missing required key: {key}')
-	
-	return dem, flowlines, config, wbt, terrain_dir, ofile
+    dem = rioxarray.open_rasterio(dem_file)
+    flowlines = gpd.read_file(flowlines_file)
+
+    # parse config_file
+    config = toml.load(config_file)
+    required_keys = ['tolerance', 'xs_spacing', 'xs_width', 'xs_point_spacing', 'quantile', 'buffer', 'slope_threshold', 'peak_threshold', 'bp_slope_threshold']
+    for key in required_keys:
+        if key not in config:
+            raise ValueError(f'config is missing required key: {key}')
+
+    return dem, flowlines, config, wbt, terrain_dir, ofile
 
 
 def delineate_valleys(watershed,
