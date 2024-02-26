@@ -103,8 +103,12 @@ def prepare_xsection(xs_points):
     if len(temp['strm_val'].dropna().unique()) > 1:
         raise ValueError('Cross section has multiple stream values')
 
+    if temp['hand'].isna().all():
+        #raise ValueError(f'Cross section has no HAND values')
+        return None
+
     if temp['strm_val'].isna().all():
-        min_point = temp['hand'].idxmin()
+        min_point = temp['hand'].idxmin(skipna=True)
         min_alpha = temp['alpha'].loc[min_point]
         temp['alpha'] = temp['alpha'] - min_alpha
     elif len(temp['strm_val'].dropna().unique()) == 1:
