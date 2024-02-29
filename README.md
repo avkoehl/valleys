@@ -15,7 +15,7 @@ This will only happen the first time and can be ignored.
 
 # Usage
 
-Input is a 10m DEM raster and a vector of the river network. 
+Input is a DEM raster and a vector of the river network. 
 Parameters for the algorithm are passed from a toml config file.
 Output is a shapefile of the valley floor polygons as well as a directory with all the derived terrain attributes used for the algorithm.
 
@@ -27,6 +27,14 @@ poetry run python -m pyvalleys <dem_path> <flowlines_path> <config_path> <wbt_ex
 ```
 
 The workflow for extracting valleys can be seen in 'pyvalleys/workflow.py'.
+
+# Input Data
+
+Recommend USGS 10m DEM and NHD medium resolution flowlines. 
+
+Flowlines need to have a column called 'StartFlag' that indicates if the segment is a first order stream.
+
+For NHD flowlines it is best to filter the raw flowline data to only include segments for streams/rivers by FTYPE before passing through the workflow. Optionally can remove streams that are small and first order.
 
 # Config
 
