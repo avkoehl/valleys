@@ -1,3 +1,8 @@
+WhiteBoxTools through whitebox python package
+unfortunately whitebox python package will automatically download the tool when the class is initialized for no good reason
+
+
+
 # config looks like:
 
 ```
