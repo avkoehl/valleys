@@ -268,7 +268,14 @@ class Watershed:
 
         values = np.unique(self.dataset['subbasins'].values)
         values = values[~np.isnan(values)]
-        return values
+
+        # only keep ones that have an associated flowline
+        # this can occur in unique cases like huc10: 1805000203
+        strm_vals = np.unique(self.flowlines['STRM_VAL'])
+
+        # ids are where subbasin and flowline
+        ids = np.intersect1d(values, strm_vals)
+        return ids
 
     def flood_and_filter(self, hand_threshold = 50, slope_threshold=25):
         if 'hand' not in self.dataset or 'slope' not in self.dataset:
