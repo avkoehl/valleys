@@ -1,11 +1,10 @@
 # Project Directory Structure
 configs/
 data/
-raw_data/
-toy_data/
 outputs/
 *.pdf
 cache/
+testing/
 
 # vim
 [._]*.s[a-v][a-z]

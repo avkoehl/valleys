@@ -2,6 +2,7 @@ import datetime
 import os
 import shutil
 import sys
+import json
 
 import geopandas as gpd
 import rioxarray
@@ -29,7 +30,7 @@ def valley_floors(dem_file, flowlines_file, config_file, wbt_path, terrain_dir, 
     watershed.process_watershed(wbt)
     valleys = delineate_valleys(watershed, **config)
     valleys['date'] = datetime.datetime.now().strftime("%Y-%m-%d")
-    valleys['config'] = config
+    valleys['config'] = json.dumps(config)
     valleys.to_file(ofile)
 
 def convert_to_absolute_path(filename):
