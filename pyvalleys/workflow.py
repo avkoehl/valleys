@@ -108,19 +108,9 @@ def delineate_valleys(watershed,
 
         poly = subbasin.valley_floor_polygon
         threshold = subbasin.hand_threshold
-        if threshold is None:
-            redo.append(sid)
-
-        if threshold is not None:
-            results.append((sid, poly, threshold, quantile, buffer, slope_threshold))
-    hand_thresholds = [r[2] for r in results]
-    mean = sum(hand_thresholds) / len(hand_thresholds)
-    for sid in redo:
-        subbasin_data, flowline = watershed.clip_to_subbasin(sid)
-        subbasin_data = prep_dataset(subbasin_data)
-        subbasin = Subbasin(subbasin_data, flowline, sid)
-        subbasin.delineate_valley_floor(buffer=buffer, slope_threshold=slope_threshold, overwrite_hand=mean)
         results.append((sid, poly, threshold, quantile, buffer, slope_threshold))
+
+    # HOW TO HANDLE CASES WHERE NO HAND THRESHOLD?
 
     df = gpd.GeoDataFrame(results, columns=['ID', 'floor', 'HAND', 'quantile', 'buffer', 'max_slope'], geometry='floor', crs=watershed.dataset.dem.rio.crs)
     return df
