@@ -24,14 +24,21 @@ def setup_wbt(whitebox_dir, working_dir):
     wbt.set_verbose_mode(False)
     return wbt
 
-def valley_floors(dem_file, flowlines_file, config_file, wbt_path, terrain_dir, ofile):
+def valley_floors(dem_file, flowlines_file, config_file, wbt_path, terrain_dir, ofile, debug_file=None):
     dem, flowlines, config, wbt, terrain_dir, ofile = setup(dem_file, flowlines_file, config_file, wbt_path, terrain_dir, ofile)
     watershed = Watershed(dem, flowlines, terrain_dir)
     watershed.process_watershed(wbt)
-    valleys = delineate_valleys(watershed, **config)
+
+    if debug_file not None:
+        valleys, breakpoints = delineate_valleys(watershed, **config, debug_flag=True)
+    else:
+        valleys = delineate_valleys(watershed, **config)
     valleys['date'] = datetime.datetime.now().strftime("%Y-%m-%d")
     valleys['config'] = json.dumps(config)
     valleys.to_file(ofile)
+
+    if debug_file not None:
+        breakpoints.to_file(debug_file)
 
 def convert_to_absolute_path(filename):
     return os.path.abspath(os.path.expanduser(filename))
@@ -76,6 +83,7 @@ def setup(dem_file, flowlines_file, config_file, wbt_path, terrain_dir, ofile):
 
 
 def delineate_valleys(watershed,
+                      debug_flag=False,
                      tolerance=20,
                      xs_spacing=50,
                      xs_width = 500,
@@ -87,6 +95,8 @@ def delineate_valleys(watershed,
                      bp_slope_threshold = 20):
 
 
+    if debug_flag:
+        debug = [] # list of breakpoint dfs
     results = []
     redo = []
     for sid in watershed.get_subbasin_ids():
@@ -110,9 +120,18 @@ def delineate_valleys(watershed,
         threshold = ve.hand_threshold
         results.append((sid, poly, threshold, quantile, buffer, slope_threshold))
 
-    # HOW TO HANDLE CASES WHERE NO HAND THRESHOLD?
+        if debug_flag:
+            bps = ve.break_points.df
+            bps['Subbasin_ID'] = SID
+            debug.append(bps)
 
+    # HOW TO HANDLE CASES WHERE NO HAND THRESHOLD?
     df = gpd.GeoDataFrame(results, columns=['ID', 'floor', 'HAND', 'quantile', 'buffer', 'max_slope'], geometry='floor', crs=watershed.dataset.dem.rio.crs)
+
+    if debug_flag:
+        bps = pd.concat(debug)
+        return df, bps
+
     return df
 
 def prep_dataset(dataset):
