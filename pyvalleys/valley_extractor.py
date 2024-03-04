@@ -35,7 +35,7 @@ from pyvalleys.breakpoints import find_xs_break_points
 from pyvalleys.breakpoints import find_xs_break_points_alternate
 from pyvalleys.gis import rioxarray_sample_points, close_holes, polygonize_feature
 
-class Subbasin:
+class ValleyExtractor:
     def __init__(self, dataset, flowline, subbasin_id):
         self.subbasin_id = subbasin_id
         self.flowline = flowline
@@ -154,7 +154,7 @@ class Subbasin:
         values = values.where(values != 1, self.subbasin_id)
         return values
 
-    def valley_floor_by_breakpoints_full_workflow(self, tolerance=20, xs_spacing=20,
+    def run(self, tolerance=20, xs_spacing=20,
                                                   xs_width=500, xs_point_spacing=10,
                                                   quantile=0.7, buffer=0, 
                                                   slope_threshold=None, peak_threshold=0.002, bp_slope_threshold=20):

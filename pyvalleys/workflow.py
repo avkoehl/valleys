@@ -9,7 +9,7 @@ import rioxarray
 import toml
 import whitebox
 
-from pyvalleys.subbasin import Subbasin
+from pyvalleys.valley_extractor import ValleyExtractor
 from pyvalleys.watershed import Watershed
 
 def setup_wbt(whitebox_dir, working_dir):
@@ -93,8 +93,8 @@ def delineate_valleys(watershed,
         subbasin_data, flowline = watershed.clip_to_subbasin(sid)
         subbasin_data = prep_dataset(subbasin_data)
 
-        subbasin = Subbasin(subbasin_data, flowline, sid)
-        subbasin.valley_floor_by_breakpoints_full_workflow(
+        ve = ValleyExtractor(subbasin_data, flowline, sid)
+        ve.run(
                 tolerance=tolerance,
                 xs_spacing=xs_spacing,
                 xs_width = xs_width,
@@ -106,8 +106,8 @@ def delineate_valleys(watershed,
                 bp_slope_threshold = bp_slope_threshold
                 )
 
-        poly = subbasin.valley_floor_polygon
-        threshold = subbasin.hand_threshold
+        poly = ve.valley_floor_polygon
+        threshold = ve.hand_threshold
         results.append((sid, poly, threshold, quantile, buffer, slope_threshold))
 
     # HOW TO HANDLE CASES WHERE NO HAND THRESHOLD?
