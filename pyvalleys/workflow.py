@@ -5,6 +5,7 @@ import sys
 import json
 
 import geopandas as gpd
+import pandas as pd
 import rioxarray
 import toml
 import whitebox
@@ -29,7 +30,7 @@ def valley_floors(dem_file, flowlines_file, config_file, wbt_path, terrain_dir, 
     watershed = Watershed(dem, flowlines, terrain_dir)
     watershed.process_watershed(wbt)
 
-    if debug_file not None:
+    if debug_file is not None:
         valleys, breakpoints = delineate_valleys(watershed, **config, debug_flag=True)
     else:
         valleys = delineate_valleys(watershed, **config)
@@ -37,7 +38,7 @@ def valley_floors(dem_file, flowlines_file, config_file, wbt_path, terrain_dir, 
     valleys['config'] = json.dumps(config)
     valleys.to_file(ofile)
 
-    if debug_file not None:
+    if debug_file is not None:
         breakpoints.to_file(debug_file)
 
 def convert_to_absolute_path(filename):
@@ -121,8 +122,8 @@ def delineate_valleys(watershed,
         results.append((sid, poly, threshold, quantile, buffer, slope_threshold))
 
         if debug_flag:
-            bps = ve.break_points.df
-            bps['Subbasin_ID'] = SID
+            bps = ve.break_points_df
+            bps['Subbasin_ID'] = sid
             debug.append(bps)
 
     # HOW TO HANDLE CASES WHERE NO HAND THRESHOLD?
