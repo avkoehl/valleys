@@ -26,6 +26,7 @@ import pandas as pd
 import rasterio
 import scipy
 from shapely.geometry import shape
+from shapely.geometry import Point
 from shapely.geometry import Polygon
 from shapely.geometry import MultiPolygon
 import xarray as xr
@@ -89,7 +90,7 @@ class ValleyExtractor:
         combined = break_points_df['pos'].dropna().to_list() + break_points_df['neg'].dropna().to_list()
         self.break_points_df = self.cross_sections_df.loc[self.cross_sections_df['point_id'].isin(combined)]
 
-    def _determine_hand_threshold(self, quantile=0.7):
+    def determine_hand_threshold(self, quantile=0.7, buffer=0):
         hand_values = self.break_points_df['hand']
 
         # remove outliers
@@ -99,15 +100,10 @@ class ValleyExtractor:
         # set threshold
         self.hand_threshold = hand_values.quantile(quantile)
 
-    def delineate_valley_floor(self, quantile=0.7, buffer=0, slope_threshold=None, overwrite_hand=False):
-        hand = self.dataset['hand']
-
-        if overwrite_hand:
-            self.hand_threshold = overwrite_hand + buffer
-        else:
-            self._determine_hand_threshold(quantile)
+        if buffer > 0:
             self.hand_threshold = self.hand_threshold + buffer
 
+    def delineate_valley_floor(self, slope_threshold=None):
         values = self._apply_thresholds_and_fill_holes(self.hand_threshold, slope_threshold)
         self.valley_floor_raster = values
         
@@ -154,6 +150,20 @@ class ValleyExtractor:
         values = values.where(values != 1, self.subbasin_id)
         return values
 
+    def _get_max_width(self):
+        # better ways to constrain width but this will do
+        values = self.dataset['hand']
+        values = values.where(np.isnan(values), 1)
+        values = values.astype(np.uint8)
+
+        polygon = polygonize_feature(values, 1)[0]
+        box = polygon.minimum_rotated_rectangle
+        x, y = box.exterior.coords.xy
+        edge_lengths = (Point(x[0], y[0]).distance(Point(x[1], y[1])), Point(x[1], y[1]).distance(Point(x[2], y[2])))
+        length = max(edge_lengths)
+        length = int(length) + 1
+        return length
+
     def run(self, tolerance=20, xs_spacing=20,
                                                   xs_width=500, xs_point_spacing=10,
                                                   quantile=0.7, buffer=0, 
@@ -161,5 +171,21 @@ class ValleyExtractor:
         self.sample_cross_section_points(tolerance=tolerance, xs_spacing=xs_spacing, 
                                          xs_width=xs_width, xs_point_spacing=xs_point_spacing)
         self.find_breakpoints(peak_threshold=peak_threshold, bp_slope_threshold=bp_slope_threshold)
-        self.delineate_valley_floor(quantile=quantile, buffer=buffer, slope_threshold=slope_threshold)
+
+        # if not enough breakpoints: rerun with xs_width == max width of subbasin
+        if len(self.break_points_df) < 5:
+            new_xs_width = self._get_max_width()
+            self.sample_cross_section_points(tolerance=tolerance, xs_spacing=xs_spacing, xs_width=new_xs_width, xs_point_spacing=xs_point_spacing)
+            self.find_breakpoints(peak_threshold=peak_threshold, bp_slope_threshold=bp_slope_threshold)
+
+            # if still not enough
+            if len(self.break_points_df) < 5:
+                #self.hand_threshold = self.cross_sections_df['hand'].max()
+                self.hand_threshold = self.dataset['hand'].max().values.item()
+            else:
+                self.determine_hand_threshold(quantile, buffer)
+        else:
+            self.determine_hand_threshold(quantile, buffer)
+            
+        self.delineate_valley_floor(slope_threshold=slope_threshold)
         return
