@@ -2925,6 +2925,58 @@ files = [
 ]
 
 [[package]]
+name = "ruptures"
+version = "1.1.9"
+description = "Change point detection for signals in Python."
+optional = false
+python-versions = ">=3.6"
+files = [
+    {file = "ruptures-1.1.9-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:8ab2569b94f6e6fb397379c4085516817ac51101970f4392d5f9f383ba45b02f"},
+    {file = "ruptures-1.1.9-cp310-cp310-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:aebd937375305d5247e3559158dbb1249f358540a11903a174a68fd2ce7ffeb9"},
+    {file = "ruptures-1.1.9-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:b8071bd94c3acb09de3ddc09f88e002442e233a9431f1964d7949cf06c4fb315"},
+    {file = "ruptures-1.1.9-cp310-cp310-win_amd64.whl", hash = "sha256:06da516a38ac9ab0525f0c3791feaf1fb2c4704d85df6197578f8e1b8b808113"},
+    {file = "ruptures-1.1.9-cp311-cp311-macosx_10_9_x86_64.whl", hash = "sha256:ec33c2e42156b4de8fa52f2b1194c94d9b36b5e68b49984b2103c40c24606267"},
+    {file = "ruptures-1.1.9-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:4aaf893069368957a29883c209f57a782278cc6a85a2e1fb6193477a45ae115c"},
+    {file = "ruptures-1.1.9-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:2f8899fc23c762245b3b2bf532ee366d285c98c3ffc4a66746a4daf524997cd0"},
+    {file = "ruptures-1.1.9-cp311-cp311-win_amd64.whl", hash = "sha256:4759f0b3decd8ee3c2bc5104247aedb9c06d51a2055e40961d5389dbeb7b9075"},
+    {file = "ruptures-1.1.9-cp312-cp312-macosx_10_9_x86_64.whl", hash = "sha256:28d242c961a2b486e36b25a4df3f26fabee0607ae8c80b2e65e73a9db491ce76"},
+    {file = "ruptures-1.1.9-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:9df414e3952e1d6b26dc02515d28b9adfc821ef2c6459c196a3ae751dd7d1813"},
+    {file = "ruptures-1.1.9-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:8466857f4d5c957b050bead1bb0e7d5f2807c60c5bdc30fc533f36ae0234583f"},
+    {file = "ruptures-1.1.9-cp312-cp312-win_amd64.whl", hash = "sha256:92adde29b24b3ad94d8cd9421634a5f8dd729ae74d3b88bdca4bbc5cfd450c11"},
+    {file = "ruptures-1.1.9-cp36-cp36m-macosx_10_9_x86_64.whl", hash = "sha256:e93ddfd7a5c7930fb2a0b3e9af63f5b802c084117ceb00e8c3e1c3084128277b"},
+    {file = "ruptures-1.1.9-cp36-cp36m-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:1b04359d3b74d33175ee76218572ac8d6947aa76bd5db9646aa5feb4b9c6b81a"},
+    {file = "ruptures-1.1.9-cp36-cp36m-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:439f200518ac5e67974cd82348eaa9a4bdb8d460019765d16619bf4aed6612ee"},
+    {file = "ruptures-1.1.9-cp36-cp36m-manylinux_2_5_i686.manylinux1_i686.manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:a7c2d8d7d60a5063d28a3faea0fef2e988e3e24774974da8827fa6a3b43d7e8a"},
+    {file = "ruptures-1.1.9-cp36-cp36m-win32.whl", hash = "sha256:b3b036e9a34734db789ca2490119319845d4fa7fa127b2e824313a074c58b5b9"},
+    {file = "ruptures-1.1.9-cp36-cp36m-win_amd64.whl", hash = "sha256:8ca334bdb810acee3c7adab1b8dc99d40f7d9e75b2f972adce9e69fddeef4e0e"},
+    {file = "ruptures-1.1.9-cp37-cp37m-macosx_10_9_x86_64.whl", hash = "sha256:1d2bf983c70f680beafced8b279dcc15eabf706f4e0efa32d87a3d42c3e9c30e"},
+    {file = "ruptures-1.1.9-cp37-cp37m-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:73f728f4b2de60483347464b811287b3a8cc44f5bcd905c32dd2b5e5e23c68a3"},
+    {file = "ruptures-1.1.9-cp37-cp37m-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:6978aa528b36c9a683b061231539393b392f5f3ab52b511f2f3912a37d74667d"},
+    {file = "ruptures-1.1.9-cp37-cp37m-manylinux_2_5_i686.manylinux1_i686.manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:4547e7611c97eb818c6dc8054c25ed84fb5060951541d3ef8602575b43487e87"},
+    {file = "ruptures-1.1.9-cp37-cp37m-win32.whl", hash = "sha256:3934bffd4f424de3a6ef73931fe9f4d84ff905f8ceef12c5f87b94006d90cc78"},
+    {file = "ruptures-1.1.9-cp37-cp37m-win_amd64.whl", hash = "sha256:31c8699b6fd7ec20ea31bf2a1a5dbeb52a79cad4f51615694f6cf5b443fc8af2"},
+    {file = "ruptures-1.1.9-cp38-cp38-macosx_10_9_x86_64.whl", hash = "sha256:14e2bf1d3453c67a7b11dcc7a34c20beebcd60401af35f18de8a4cad3fde30d7"},
+    {file = "ruptures-1.1.9-cp38-cp38-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:981fc93f7093b4d7522e148be61635eae39ab46b2e20afb6b736d1235c38b053"},
+    {file = "ruptures-1.1.9-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:732a9a06d46f52a9ce76c8fa1a799718f019d7431cd018ea54fe6b39ac13e3b3"},
+    {file = "ruptures-1.1.9-cp38-cp38-win_amd64.whl", hash = "sha256:49d42f06a755664f660ab326a887ecd1ec8fe4d3bdf78c1e233fb43029c8ee32"},
+    {file = "ruptures-1.1.9-cp39-cp39-macosx_10_9_x86_64.whl", hash = "sha256:829e7623364287c87607f01b62c799396bbdd3c4c2d0c9757e6252960fa51de2"},
+    {file = "ruptures-1.1.9-cp39-cp39-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:8cf9597804d1cd227f16021b24e0619c0747247b9de268e436ec8c317a846aca"},
+    {file = "ruptures-1.1.9-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:03fd112accfff518ab191ebac78d2d3cf2eca341a41363bfd95f3db907a6a7b1"},
+    {file = "ruptures-1.1.9-cp39-cp39-win_amd64.whl", hash = "sha256:55d7f20088153ebc2d4d2528dc3b6f7bdcdc8638153e84bfe1393e89001535ce"},
+    {file = "ruptures-1.1.9.tar.gz", hash = "sha256:aa940f3c02235dab94753ff15689f8ebaca10c83da71cb29cbb7f981dfa362dc"},
+]
+
+[package.dependencies]
+numpy = "*"
+scipy = "*"
+
+[package.extras]
+dev = ["pre-commit"]
+display = ["matplotlib"]
+docs = ["jupyter", "librosa", "matplotlib", "mkdocs", "mkdocs-macros-plugin", "mkdocs-material", "mkdocs-section-index", "mkdocstrings[python] (>=0.18)", "mknotebooks", "nltk", "pymdown-extensions"]
+test = ["pytest", "pytest-cov"]
+
+[[package]]
 name = "scipy"
 version = "1.12.0"
 description = "Fundamental algorithms for scientific computing in Python"
@@ -3054,6 +3106,73 @@ numpy = ">=1.14,<2"
 [package.extras]
 docs = ["matplotlib", "numpydoc (==1.1.*)", "sphinx", "sphinx-book-theme", "sphinx-remove-toctrees"]
 test = ["pytest", "pytest-cov"]
+
+[[package]]
+name = "shapelysmooth"
+version = "0.1.1"
+description = "A polyline smoothing package for shapely."
+optional = false
+python-versions = ">=3.6"
+files = [
+    {file = "shapelysmooth-0.1.1-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:92c46441ce24a5b3faa85abf1b28de3cbf5a41a6e6cfd1f52aa984643689cc59"},
+    {file = "shapelysmooth-0.1.1-cp310-cp310-manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:41ec6c2fc104c2a93d0c775a8863d1b1c9a958f01981c6d3e76e0e74baafd415"},
+    {file = "shapelysmooth-0.1.1-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:f39af9c8c517f00b0cfad43489835b5bbc1fd55ef671df2d6349c57b54ec410d"},
+    {file = "shapelysmooth-0.1.1-cp310-cp310-musllinux_1_1_i686.whl", hash = "sha256:8e350c979a331ccdb47082d2ef1a8e86dcf951ae7a4ecdb4e31bddef33b1e5c3"},
+    {file = "shapelysmooth-0.1.1-cp310-cp310-musllinux_1_1_x86_64.whl", hash = "sha256:d8dab27c086fd2bbc48c560c77649c77ba901b4a1718e6d568792bcef4f958e2"},
+    {file = "shapelysmooth-0.1.1-cp310-cp310-win32.whl", hash = "sha256:5161b2e836f9186c25cef6b63cb5fd3c927902636746f21837884d67bb5166a5"},
+    {file = "shapelysmooth-0.1.1-cp310-cp310-win_amd64.whl", hash = "sha256:f086804428ca430e0b21557dc0d0df51e29c712dec7f652e9fecffa153b621c1"},
+    {file = "shapelysmooth-0.1.1-cp311-cp311-macosx_10_9_x86_64.whl", hash = "sha256:b5958d6371ac41f06c701384ce560067800c66f68e6b32d4b3332a18f0f030e5"},
+    {file = "shapelysmooth-0.1.1-cp311-cp311-manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:c53529dc97079ae684e5bb3b690ee8a2da3e837bbf57d9e1e441a2c2d6646597"},
+    {file = "shapelysmooth-0.1.1-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:8a783d6bdcd2511da767f19ce3c02d4af0b65d35347980b1831fa1a576b3ded4"},
+    {file = "shapelysmooth-0.1.1-cp311-cp311-musllinux_1_1_i686.whl", hash = "sha256:ed97f0f6b3549dc442ac1efea7f347344e476afa5a5f2327242822ca03d6be7a"},
+    {file = "shapelysmooth-0.1.1-cp311-cp311-musllinux_1_1_x86_64.whl", hash = "sha256:815a087ed3bc5d5c4fae9b3c26dfb2db81593435d786ee1b88376958b5e4a3d7"},
+    {file = "shapelysmooth-0.1.1-cp311-cp311-win32.whl", hash = "sha256:75614eda204cdcb3432b5c235e2c0203d54ffb383c6f8bc2b762de2856489498"},
+    {file = "shapelysmooth-0.1.1-cp311-cp311-win_amd64.whl", hash = "sha256:3b96b2e6d3503b177fa2c3609cccc393aff8dce67777d2e5388dfc15039a4eb0"},
+    {file = "shapelysmooth-0.1.1-cp36-cp36m-macosx_10_9_x86_64.whl", hash = "sha256:844b676690906f917c9d92354375361efbeef1e81c656bfc7ec43a7085d10756"},
+    {file = "shapelysmooth-0.1.1-cp36-cp36m-manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:273400dff7527f681cb68dc2b4f056b167ba3db20ec6fc05f74ad6cabc4d653a"},
+    {file = "shapelysmooth-0.1.1-cp36-cp36m-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:d7bc1fdbdb36255492da3ff0df62a2b270132e3599ed7ec2fa8f52d7a2d715a7"},
+    {file = "shapelysmooth-0.1.1-cp36-cp36m-musllinux_1_1_i686.whl", hash = "sha256:35c7c6037e0479368606f41200c206d4f4e8594fd722887cd30348716def0abd"},
+    {file = "shapelysmooth-0.1.1-cp36-cp36m-musllinux_1_1_x86_64.whl", hash = "sha256:8008c205614264bb402e598fc9ca54e1948d42a329d9d42596503242c97681af"},
+    {file = "shapelysmooth-0.1.1-cp36-cp36m-win32.whl", hash = "sha256:cdd272512a2cd364762e3b97e929cd6c8f31fbfe6048bff84a3e707ebba211d8"},
+    {file = "shapelysmooth-0.1.1-cp36-cp36m-win_amd64.whl", hash = "sha256:dd20cd8c19b8e0889b14f9ea22ec3584c002e4d42a931db9537cde13bf400006"},
+    {file = "shapelysmooth-0.1.1-cp37-cp37m-macosx_10_9_x86_64.whl", hash = "sha256:17719a43a0e82f7a9621bf39a94db2e14979d6653a5a4761edc3bb4c46ced88a"},
+    {file = "shapelysmooth-0.1.1-cp37-cp37m-manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:3aa7a593deb5301989d76381a2acc06dcf3fa790dd0ff78e390605801dc1bf40"},
+    {file = "shapelysmooth-0.1.1-cp37-cp37m-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:0abea38c8042d6df4a057ebb371875ed50d1a4bdbf17c5924a06d1ed760a80d4"},
+    {file = "shapelysmooth-0.1.1-cp37-cp37m-musllinux_1_1_i686.whl", hash = "sha256:1919d13050265cbb4e8c952d4a206cb7d42acd610c68ddc247f69ac87517154c"},
+    {file = "shapelysmooth-0.1.1-cp37-cp37m-musllinux_1_1_x86_64.whl", hash = "sha256:65a8cd90867961767e45f84247ecf7f1805cd25f98c4eafb96349baafb03bffc"},
+    {file = "shapelysmooth-0.1.1-cp37-cp37m-win32.whl", hash = "sha256:8aa29f0eb27a846d991e16528d459fcfe0a97505ac6372c301b485e7fee9fe7c"},
+    {file = "shapelysmooth-0.1.1-cp37-cp37m-win_amd64.whl", hash = "sha256:54d3acd8537a1324c907562a71ab70f21a4ef7afe2be8ae40ec2710f16f85ff6"},
+    {file = "shapelysmooth-0.1.1-cp38-cp38-macosx_10_9_x86_64.whl", hash = "sha256:273cb4706467d48ef1e3c1dd3a56149e0f7a8a8bd33529a696a8bac45c875ee8"},
+    {file = "shapelysmooth-0.1.1-cp38-cp38-manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:0762e2fd1ff4757c1795c2dadf044d3748ea222fbbaededddf3025501609f805"},
+    {file = "shapelysmooth-0.1.1-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:8179469ca05a20d979dc92a86006692fce843959d66b3636f6f0bdccef00ff1b"},
+    {file = "shapelysmooth-0.1.1-cp38-cp38-musllinux_1_1_i686.whl", hash = "sha256:d043bd76069cd4660e958190361899dd6064a348ed87ff904f2f2259d1cebcf0"},
+    {file = "shapelysmooth-0.1.1-cp38-cp38-musllinux_1_1_x86_64.whl", hash = "sha256:4a2acb770d088e810e139f5016d619e22cbe68b4d9aad821a07c651df4f460f0"},
+    {file = "shapelysmooth-0.1.1-cp38-cp38-win32.whl", hash = "sha256:1172c956d5fa95b4c9c6f9c5c50f6b595513a3c29823d52364c5491d05b8193c"},
+    {file = "shapelysmooth-0.1.1-cp38-cp38-win_amd64.whl", hash = "sha256:bc4b31c9dc90cf2cf8f333bb2112553680cbd420bc139552e32741013eb6bdb9"},
+    {file = "shapelysmooth-0.1.1-cp39-cp39-macosx_10_9_x86_64.whl", hash = "sha256:27028b6c399b215bc4dda1e516f83b7a88e076ae5e2c1cebb457e8c9d89cf709"},
+    {file = "shapelysmooth-0.1.1-cp39-cp39-manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:9d8aac3acc2cdd7537d6b3ba17cd7b5fdfe6bed42168e1320f26fed8cf874e47"},
+    {file = "shapelysmooth-0.1.1-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:4b9893f727194d1aa18247f8d5d992651a815aa7c25dd79398f8f80fdb29762b"},
+    {file = "shapelysmooth-0.1.1-cp39-cp39-musllinux_1_1_i686.whl", hash = "sha256:4aeb697c168ef12d2f08762e95c54662b04a611a3498e743ff16fb4bf977533e"},
+    {file = "shapelysmooth-0.1.1-cp39-cp39-musllinux_1_1_x86_64.whl", hash = "sha256:844aa8bc73b480ec38aa74e0f3a0993f6d80c43f1dfe49cde0bba4bf00e138b3"},
+    {file = "shapelysmooth-0.1.1-cp39-cp39-win32.whl", hash = "sha256:5a1dc78312cc0a96892bf053a310b4989874b77d46dc0b084fc0b07cae5f5ef7"},
+    {file = "shapelysmooth-0.1.1-cp39-cp39-win_amd64.whl", hash = "sha256:99b9edc90e4ce795da4c87fa80a5f4a584f8aa08384e2eb82d040ad6d228c180"},
+    {file = "shapelysmooth-0.1.1-pp37-pypy37_pp73-macosx_10_9_x86_64.whl", hash = "sha256:78a9c16105353383821b49b99785e5c1f0fa41d996e47a05cb43be76c24e189d"},
+    {file = "shapelysmooth-0.1.1-pp37-pypy37_pp73-manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:847f9422a51c7cb38b95938687ac8b82b55228904009f76416743d5b6b11b96d"},
+    {file = "shapelysmooth-0.1.1-pp37-pypy37_pp73-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:3efe8dd9e570b8f86c534f9ea989e4e7ae4575ff6999bf81cea54baea7d94341"},
+    {file = "shapelysmooth-0.1.1-pp37-pypy37_pp73-win_amd64.whl", hash = "sha256:4c9f65e5d2b892af5150b6ba941414d205d75d2af0bc9a07c90dcb8571b82e27"},
+    {file = "shapelysmooth-0.1.1-pp38-pypy38_pp73-macosx_10_9_x86_64.whl", hash = "sha256:ef9ae7ff66de6e3ea9056586a1f7cc4bdb9ab74bac47187c6d4f9565221faeec"},
+    {file = "shapelysmooth-0.1.1-pp38-pypy38_pp73-manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:26304a6861b47b2062fe95325e7424c727f0051fbd8525ad5ddd30966496384b"},
+    {file = "shapelysmooth-0.1.1-pp38-pypy38_pp73-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:7d277ae4adc694be0403b95163564acc481538b9172f012ca2d7a13769eb3c23"},
+    {file = "shapelysmooth-0.1.1-pp38-pypy38_pp73-win_amd64.whl", hash = "sha256:86b4f26da0366080ea1bcd0325075d144c395ca31ac0a60e2ec38b873e43c456"},
+    {file = "shapelysmooth-0.1.1-pp39-pypy39_pp73-macosx_10_9_x86_64.whl", hash = "sha256:26698a2023d5c11f70069c9a891b68b478a48fe3b4cb5454f270ae929e01de4f"},
+    {file = "shapelysmooth-0.1.1-pp39-pypy39_pp73-manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:56d306d6f8d3219e0db7bbcc8cf58c7f6e9a1e66786603fb1f050f8eec080aed"},
+    {file = "shapelysmooth-0.1.1-pp39-pypy39_pp73-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:4e08cfaa8ea59b7b9134984af698a83c9b10fd569633866b8eb3963ebd8cf601"},
+    {file = "shapelysmooth-0.1.1-pp39-pypy39_pp73-win_amd64.whl", hash = "sha256:45d765b3f0cc7832b0d6ab2052afbb8f6d783d1dd5cbe0fec4df997f143af61b"},
+    {file = "shapelysmooth-0.1.1.tar.gz", hash = "sha256:02141a11f8f615b418a854475292c107b3e2c6bc5f56e9b683eea9f63ac288a3"},
+]
+
+[package.dependencies]
+shapely = "*"
 
 [[package]]
 name = "six"
@@ -3390,4 +3509,4 @@ viz = ["matplotlib", "nc-time-axis", "seaborn"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "bc447100f57638118374b25dd8f357ae26977fa15b0e764c23b2d5b61531310f"
+content-hash = "3bb240f0ef7393b82798db350794f8110872d86a8b5304b5e154044d118da8e4"
