@@ -14,18 +14,21 @@ https://esurf.copernicus.org/articles/10/437/2022/
 """
 import itertools
 
+import pandas as pd
 import geopandas as gpd
 import networkx as nx
 import numpy as np
 import rioxarray
 import shapely
 from shapely.geometry import Point, Polygon, LineString
+from shapelysmooth import taubin_smooth # prefer taubin unless need to preserve nodes
+from shapelysmooth import chaikin_smooth
 
 from pyvalleys.gis import rioxarray_sample_points
 
-def get_centerline(polygon, flow_paths, flow_acc, num_points=150):
+def get_centerline(polygon, flowline, flow_acc, num_points=3000, smooth=True):
     # points on boundary
-    points = create_points_along_boundary(geom, num_points)
+    points = create_points_along_boundary(polygon, num_points)
     simple = Polygon(points)
 
     # get voronoi 
@@ -40,8 +43,8 @@ def get_centerline(polygon, flow_paths, flow_acc, num_points=150):
     largest = max(subgraphs, key=len)
     g = g.subgraph(largest)
     
-    boundary_nodes = get_boundary_nodes(g)
-    start, end = get_inlet_and_outlet(simple, flowpaths, flow_acc)
+    bn = get_boundary_nodes(g)
+    start, end = get_inlet_and_outlet(flowline, flow_acc, polygon)
     
     # source nodes: nodes close to start
     # target nodes: nodes close to end
@@ -51,7 +54,11 @@ def get_centerline(polygon, flow_paths, flow_acc, num_points=150):
     sources = bn.sort_values(by='distance_to_inlet').iloc[0:10]
     targets = bn.sort_values(by='distance_to_outlet').iloc[0:10]
     path = get_best_path(g, sources, targets)
-    return path
+    if smooth:
+        centerline = chaikin_smooth(taubin_smooth(path))
+    else:
+        centerline = path
+    return centerline
 
 def sinuosity(linestring):
     start = linestring.interpolate(0)
@@ -62,7 +69,7 @@ def lines_to_graph(gdf):
     nodes = {}
     count = 0
     G = nx.Graph()
-    for i,linestring in enumerate(lines.geometry):
+    for i,linestring in enumerate(gdf.geometry):
         c1 = linestring.coords[0]
         c2 = linestring.coords[-1]
         if c1 not in nodes:
@@ -105,12 +112,8 @@ def get_boundary_nodes(g):
     bn = gpd.GeoDataFrame(bn, geometry='geometry', crs=3310)
     return bn
 
-def get_inlet_and_outlet(flowpaths, flow_acc, polygon):
-    flowpaths = flowpaths.clip(polygon)
-    flowpaths = flowpaths.assign(length=flowpaths['geometry'].length).sort_values(by='length', ascending=False).drop(columns=['length'])
-    flowpaths = gpd.GeoSeries(flowpaths.iloc[0]['geometry'])
-    line = flowpaths.iloc[0]
-    coords = gpd.GeoSeries([Point(line.coords[0]), Point(line.coords[-1])]) 
+def get_inlet_and_outlet(flowline, flow_acc, polygon):
+    coords = gpd.GeoSeries([Point(flowline.coords[0]), Point(flowline.coords[-1])]) 
     fa = rioxarray_sample_points(flow_acc, coords)
     coords = coords.iloc[fa.argsort()]
     start = coords.iloc[0]
@@ -133,6 +136,6 @@ def get_best_path(g, sources, targets):
     longest_k = all_paths.iloc[0:5]
     
     # get 'sinuousity' of each path (path.length / distance)
-    sinuosity = longest_k.geometry.apply(sinuosity)
-    best = longest_k.loc[sinuosity.idxmin()]
+    sins = longest_k.geometry.apply(sinuosity)
+    best = longest_k.loc[sins.idxmin()]
     return best.geometry
