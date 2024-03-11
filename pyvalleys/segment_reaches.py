@@ -6,29 +6,32 @@ input:
     flowpaths
 
 output:
-    reach_flowpaths 
-    reach_subbasins
-    reach_hillslopes
+    reach_pour_points
 
 steps:
     1. get centerlines
     2. get continous width measurements
-    3. add points where significant width change
-    4. remove points if segment too small
-    5. clip points to flowpaths somehow
-    6. watershed algorithm
+    3. detect segments with mean shift of width series
+    4. get points of the breakpoints clipped to flowline
 """
 
 import geopandas as gpd
 import numpy as np
 from shapely.geometry import LineString, Point
 import rioxarray
-from shapelysmooth import taubin_smooth # prefer taubin unless need to preserve nodes
-from shapelysmooth import chaikin_smooth
 
 from pyvalleys.centerline import get_centerline
 from pyvalleys.cross_section import get_cross_section_points
 import ruptures as rpt
+
+def get_pour_points(valley_polygon, flowline, flow_acc, spacing=10, pen=10):
+    centerline = get_centerline(valley_polygon, flowline, flow_acc)
+
+    lines = get_width_series(valley_polygon, centerline, spacing=spacing)
+    bps = detect_segment_breakpoints(lines, pen=pen)
+    ppts = bps.intersection(flowline)
+    ppts = ppts.loc[ppts.type == "Point"]
+    return ppts
 
 def get_width_series(valley_polygon, centerline, spacing=10):
     cs_points = get_cross_section_points(centerline, simplify=False, xs_spacing=spacing, xs_width = 2000, xs_point_spacing=2000)
@@ -53,41 +56,4 @@ def detect_segment_breakpoints(lines, pen=10):
     signal = lines['widths'].values
     algo = rpt.Pelt(model='rbf').fit(signal)
     result = algo.predict(pen=pen)
-    return lines.iloc[result[0:-1]]
-
-def locate_stream_coordinates(breakpoints, flowpath):
-    # find where breakpoint line intersects flowpath linestring
-    # if no intersect give error
-    # if multiple intersects keep closest
-
-    return coordinates
-
-# try snapping coordinates to flow acc
-# run watershed tool? in qgis with some sample points
-
-
-base = "../testing/"
-valleys = gpd.read_file(f"{base}valley_floors.shp")
-flowlines = gpd.read_file(f"{base}/1805000203/terrain_attributes/flowpaths.shp")
-flow_acc = rioxarray.open_rasterio(f"{base}/1805000203/terrain_attributes/flow_acc.tif", masked=True).squeeze()
-
-sid = 9 #9
-valley_polygon = valleys.loc[valleys['ID'] == sid]['geometry'].buffer(1).iloc[0]
-flowline = flowlines.loc[flowlines['STRM_VAL'] == sid]['geometry'].iloc[0]
-
-centerline = get_centerline(valley_polygon, flowline, flow_acc)
-widths = get_width_series(valley_polygon, centerline)
-bps = detect_segment_breakpoints(widths)
-
-    
-
-
-
-
-fig, ax = plt.subplots()
-widths.plot(ax=ax)
-bps.plot(ax=ax, color='red')
-gpd.GeoSeries(valley_polygon).plot(ax=ax, facecolor='none', edgecolor='black')
-gpd.GeoSeries(flowline).plot(ax=ax)
-gpd.GeoSeries(centerline).plot(ax=ax, color='green', linestyle='-')
-plt.show()
+    return lines.iloc[result] # this includes the last point in the series
