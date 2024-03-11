@@ -32,7 +32,7 @@ def get_cross_section_lines(linestring, xs_spacing, xs_width, crs=3310):
     lines = lines.reset_index(drop=True)
     return lines
 
-def get_cross_section_points(linestring, simplify=True, tolerance=20, xs_spacing=5, 
+def get_cross_section_points(linestring, xs_spacing=5, 
                              xs_width=100, xs_point_spacing=10, crs=3310):
     """ Get Cross Section Points 
     """
