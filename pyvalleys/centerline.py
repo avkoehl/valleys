@@ -26,7 +26,43 @@ from shapelysmooth import chaikin_smooth
 
 from pyvalleys.gis import rioxarray_sample_points
 
-def get_centerline(polygon, flowline, flow_acc, num_points=3000, smooth=True):
+def get_flowline_centerline(polygon, flowline, flow_acc, num_points=800, smooth=True, snapped=False):
+    start, end = get_inlet_and_outlet_points(flowline, flow_acc)
+
+    # check distance between start,end and polygon boundary
+    voronoi_graph = _get_interior_voronoi_network(polygon, num_points=num_points) 
+    bn = get_boundary_nodes(voronoi_graph)
+    
+    bn['distance_to_inlet'] = bn.distance(start)
+    bn['distance_to_outlet'] = bn.distance(end)
+    
+    sources = bn.sort_values(by='distance_to_inlet').iloc[0:10]
+    targets = bn.sort_values(by='distance_to_outlet').iloc[0:10]
+
+    if snapped:
+        # ensure path starts 
+        sources = sources.iloc[[0]] 
+        targets = targets.iloc[[0]]
+
+    path = get_best_path(voronoi_graph, sources, targets)
+    if smooth:
+        centerline = chaikin_smooth(taubin_smooth(path))
+    else:
+        centerline = path
+    return centerline
+
+def get_centerline(polygon, num_points, smooth=True):
+    """ generic method for getting centerline of a polygon """
+    voronoi_graph = _get_interior_voronoi_network(polygon, num_points=num_points)
+    bn = get_boundary_nodes(voronoi_graph)
+    path = get_best_path(voronoi_graph, bn, bn)
+
+    if smooth:
+        return chaikin_smooth(taubin_smooth(path))
+    else:
+        return path
+    
+def _get_interior_voronoi_network(polygon, num_points):
     # points on boundary
     points = create_points_along_boundary(polygon, num_points)
     simple = Polygon(points)
@@ -37,28 +73,12 @@ def get_centerline(polygon, flowline, flow_acc, num_points=3000, smooth=True):
 
     # convert to networkx graph
     lines = clipped.explode(index_parts=False).reset_index(drop=True)
-    lines = gpd.GeoDataFrame(geometry=lines, crs=3310)
-    g = lines_to_graph(lines)
-    subgraphs = nx.connected_components(g)
+    lines = gpd.GeoDataFrame(geometry=lines)
+    G = lines_to_graph(lines)
+    subgraphs = nx.connected_components(G)
     largest = max(subgraphs, key=len)
-    g = g.subgraph(largest)
-    
-    bn = get_boundary_nodes(g)
-    start, end = get_inlet_and_outlet(flowline, flow_acc, polygon)
-    
-    # source nodes: nodes close to start
-    # target nodes: nodes close to end
-    bn['distance_to_inlet'] = bn.distance(start)
-    bn['distance_to_outlet'] = bn.distance(end)
-    
-    sources = bn.sort_values(by='distance_to_inlet').iloc[0:10]
-    targets = bn.sort_values(by='distance_to_outlet').iloc[0:10]
-    path = get_best_path(g, sources, targets)
-    if smooth:
-        centerline = chaikin_smooth(taubin_smooth(path))
-    else:
-        centerline = path
-    return centerline
+    G = G.subgraph(largest)
+    return G
 
 def sinuosity(linestring):
     start = linestring.interpolate(0)
@@ -83,7 +103,7 @@ def lines_to_graph(gdf):
         G.add_edge(nodes[c1], nodes[c2], linestring=i)
     return G
     
-def create_points_along_boundary(polygon, num_points=150):
+def create_points_along_boundary(polygon, num_points): 
     boundary = polygon.boundary
     boundary_length = boundary.length
     interval_length = boundary_length / num_points
@@ -112,14 +132,6 @@ def get_boundary_nodes(g):
     bn = gpd.GeoDataFrame(bn, geometry='geometry', crs=3310)
     return bn
 
-def get_inlet_and_outlet(flowline, flow_acc, polygon):
-    coords = gpd.GeoSeries([Point(flowline.coords[0]), Point(flowline.coords[-1])]) 
-    fa = rioxarray_sample_points(flow_acc, coords)
-    coords = coords.iloc[fa.argsort()]
-    start = coords.iloc[0]
-    end = coords.iloc[1]
-    return start,end
-
 def get_best_path(g, sources, targets):
     combinations = list(itertools.product(sources['node_id'], targets['node_id']))
     all_paths = []
@@ -139,3 +151,11 @@ def get_best_path(g, sources, targets):
     sins = longest_k.geometry.apply(sinuosity)
     best = longest_k.loc[sins.idxmin()]
     return best.geometry
+
+def get_inlet_and_outlet_points(flowline, flow_acc):
+    coords = gpd.GeoSeries([Point(flowline.coords[0]), Point(flowline.coords[-1])]) 
+    fa = rioxarray_sample_points(flow_acc, coords)
+    coords = coords.iloc[fa.argsort()]
+    start = coords.iloc[0]
+    end = coords.iloc[1]
+    return start,end
