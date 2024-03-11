@@ -9,7 +9,28 @@ Code for methods that depend on cross section analysis
 import numpy as np
 import pandas as pd
 import geopandas as gpd
-from shapely.geometry import LineString, Point 
+import shapely
+from shapely.geometry import LineString, Point, MultiPoint
+from shapely.ops import nearest_points
+
+def get_cross_section_lines(linestring, xs_spacing, xs_width, crs=3310):
+    points = _get_points_on_linestring(linestring, xs_spacing)
+    width = int(xs_width / 2)
+
+    dfs = []
+    for i,point in enumerate(points):
+        A, B = _get_nearest_vertices2(point, linestring)
+        p1 = _sample_point_on_perpendicular_line(point, A, B, width)
+        p2 = _sample_point_on_perpendicular_line(point, A, B, -width)
+        xs = LineString([p1,p2])
+        df = pd.DataFrame(
+                [{'cross_section_id': i,
+                 'geometry': xs}])
+        dfs.append(df)
+    df = pd.concat(dfs)
+    lines = gpd.GeoDataFrame(df, geometry='geometry', crs=crs)
+    lines = lines.reset_index(drop=True)
+    return lines
 
 def get_cross_section_points(linestring, simplify=True, tolerance=20, xs_spacing=5, 
                              xs_width=100, xs_point_spacing=10, crs=3310):
@@ -23,7 +44,7 @@ def get_cross_section_points(linestring, simplify=True, tolerance=20, xs_spacing
     # for each point sample points on either side of the linestring
     dfs = []
     for i,point in enumerate(points):
-        A, B = _get_nearest_vertices(point, linestring)
+        A, B = _get_nearest_vertices2(point, linestring)
         df = pd.DataFrame(
                 {'alpha': alphas,
                  'point': [_sample_point_on_perpendicular_line(point, A, B, alpha) for alpha in alphas],
@@ -42,7 +63,32 @@ def _get_points_on_linestring(linestring, spacing):
         points.append(point)
     return points
 
-    return points_df
+def _get_nearest_vertices2(point, linestring):
+    # its known that the point is on the linestring
+    linestring_copy = linestring
+    linestring = gpd.GeoSeries(linestring).clip(point.buffer(5)).iloc[0]
+
+    if (isinstance(linestring, shapely.geometry.multilinestring.MultiLineString)):
+        ls = gpd.GeoSeries(linestring)
+        ls = ls.explode(index_parts=False).reset_index(drop=True)
+        closest = ls.loc[ls.distance(point).idxmin()]
+        linestring = closest
+
+
+    mp = MultiPoint(linestring.coords)
+    nearest_point = nearest_points(point, mp)[1]
+    index = list(linestring.coords).index((nearest_point.x, nearest_point.y))
+
+    if index == 0:
+        return [nearest_point, Point(linestring.coords[1])]
+
+    if index == (len(linestring.coords) -1):
+        return [nearest_point, Point(linestring.coords[-2])]
+
+    second_nearest = min(Point(linestring.coords[index - 1]),
+                         Point(linestring.coords[index + 1]),
+                         key=point.distance)
+    return [nearest_point, second_nearest]
 
 def _get_nearest_vertices(point, linestring):
     line_coords = linestring.coords
