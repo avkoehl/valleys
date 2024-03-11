@@ -29,6 +29,8 @@ from shapely.geometry import shape
 from shapely.geometry import Point
 from shapely.geometry import Polygon
 from shapely.geometry import MultiPolygon
+from shapelysmooth import taubin_smooth
+from shapelysmooth import chaikin_smooth
 import xarray as xr
 
 from pyvalleys.cross_section import get_cross_section_points
@@ -54,14 +56,17 @@ class ValleyExtractor:
         self.valley_floor_polygon = None
         self.valley_floor_raster = None
 
-    def _preprocess_flowline(self, tolerance=20):
+    def _preprocess_flowline(self, tolerance=None, smooth=True):
         if tolerance:
-            self.flowline = self.flowline.simplify(20)
+            self.flowline = self.flowline.simplify(tolerance)
         else:
             self.flowline = self.flowline
+
+        if smooth:
+            self.flowline = chaikin_smooth(taubin_smooth(self.flowline))
     
-    def sample_cross_section_points(self, tolerance=20, xs_spacing=20, xs_width=500, xs_point_spacing=10):
-        self._preprocess_flowline()
+    def sample_cross_section_points(self, tolerance, xs_spacing, xs_width, xs_point_spacing):
+        self._preprocess_flowline(tolerance)
 
         points = get_cross_section_points(self.flowline, xs_spacing=xs_spacing, xs_width=xs_width, xs_point_spacing=xs_point_spacing)
         points['point_id'] = np.arange(len(points))
