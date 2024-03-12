@@ -99,8 +99,8 @@ class ValleyExtractor:
         hand_values = self.break_points_df['hand']
 
         # remove outliers
-        # hand_values = hand_values[hand_values <  hand_values.quantile(.95)]
-        hand_values = hand_values[hand_values <  50]
+        hand_values = hand_values[hand_values <  hand_values.quantile(.95)]
+        #hand_values = hand_values[hand_values <  50]
 
         # set threshold
         self.hand_threshold = hand_values.quantile(quantile)
@@ -124,6 +124,9 @@ class ValleyExtractor:
         # convert to multipolygon or single polygon
         if len(polygons) > 1:
             polygon = MultiPolygon(polygons['geometry'].values)
+            polygon = polygon.buffer(1)  # cleans up multipolygon that is just an artefact of the raster to vector
+            polygon = close_holes(polygon)
+
             self.valley_floor_polygon = polygon
 
         if len(polygons) == 1:
@@ -187,6 +190,7 @@ class ValleyExtractor:
             if len(self.break_points_df) < 5:
                 #self.hand_threshold = self.cross_sections_df['hand'].max()
                 self.hand_threshold = self.dataset['hand'].max().values.item()
+                # at some point this needs to become the highest HAND value in the explored area not of the entire subbasin. where explered area is the area created by the cross sections interecting the subbasin
             else:
                 self.determine_hand_threshold(quantile, buffer)
         else:
