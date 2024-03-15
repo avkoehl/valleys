@@ -23,12 +23,12 @@ import shapely
 import rioxarray
 import ruptures as rpt
 
-from pyvalleys.centerline import get_centerline
+from pyvalleys.centerline import get_flowline_centerline
 from pyvalleys.cross_section import get_cross_section_lines
 from pyvalleys.gis import rioxarray_sample_points
 
 def get_pour_points(valley_polygon, flowline, flow_acc, spacing, pen):
-    centerline = get_centerline(valley_polygon, flowline, flow_acc)
+    centerline = get_flowline_centerline(valley_polygon, flowline, flow_acc)
 
     # make sure flowline going downhill, make sure centerline going downhill
     # make sure centerline's last point matches the last point of the flowline
