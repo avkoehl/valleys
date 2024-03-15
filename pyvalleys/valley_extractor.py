@@ -28,15 +28,18 @@ import scipy
 from shapely.geometry import shape
 from shapely.geometry import Point
 from shapely.geometry import Polygon
+from shapely.geometry import MultiPoint
 from shapely.geometry import MultiPolygon
 from shapelysmooth import taubin_smooth
 from shapelysmooth import chaikin_smooth
 import xarray as xr
 
 from pyvalleys.cross_section import get_cross_section_points
+from pyvalleys.cross_section import get_cross_section_points_from_points
+from pyvalleys.cross_section import get_cross_section_lines_from_points
 from pyvalleys.breakpoints import find_xs_break_points
 from pyvalleys.breakpoints import find_xs_break_points_alternate
-from pyvalleys.gis import rioxarray_sample_points, close_holes, polygonize_feature
+from pyvalleys.gis import rioxarray_sample_points, close_holes, polygonize_feature, get_length_and_width, get_points_on_linestring
 
 class ValleyExtractor:
     def __init__(self, dataset, flowline, subbasin_id):
@@ -51,10 +54,44 @@ class ValleyExtractor:
                 raise ValueError(f"Required band '{band}' not found in the input dataset")
 
         self.cross_sections_df = None
+        self.cross_sections_lines = None
         self.break_points_df = None
         self.hand_threshold = None
         self.valley_floor_polygon = None
         self.valley_floor_raster = None
+        self.polygon = None
+
+    def get_region_polygon(self):
+        # hand most likely to have issues
+        elevation = self.dataset['elevation']
+        values = elevation
+        values = values.where(np.isnan(values), 1)
+        values = values.astype(np.uint8)
+
+        polygons = polygonize_feature(values, 1)
+        if len(polygons) == 0:
+            raise RuntimeError("something wrong polygonizing the hand raster")
+        if len(polygons) == 1:
+            polygon = polygons[0]
+        if len(polygons) > 1:
+            series = gpd.GeoSeries(polygons).buffer(1)
+
+            if len(series) > 1:
+                # remove tiny polygons
+                series = series.loc[series.area > 1000]
+                if len(series) > 1:
+                    polygon = MultiPolygon(series.values)
+                else:
+                    polygon = series.iloc[0]
+            else:
+                polygon = polygon.iloc[0]
+
+        self.polygon = polygon
+    
+    def _get_max_possible_width(self):
+        if self.polygon is None:
+            self.get_region_polygon()
+        return max(get_length_and_width(self.polygon))
 
     def _preprocess_flowline(self, tolerance=None, smooth=True):
         if tolerance:
@@ -64,6 +101,37 @@ class ValleyExtractor:
 
         if smooth:
             self.flowline = chaikin_smooth(taubin_smooth(self.flowline))
+
+    def get_cross_section_data(self, tolerance, smooth, xs_spacing, xs_width, xs_point_spacing):
+        # get cross sections:
+        #      1. cross_section_id, point_id, point, value1, value2 ...
+        #      3. cross_section_id, linestring (clipped to subbasin)
+        self._preprocess_flowline(tolerance=tolerance, smooth=smooth)
+
+        points = get_points_on_linestring(self.flowline, xs_spacing)
+
+        # 1.
+        xs_points = get_cross_section_points_from_points(self.flowline, points, xs_width, xs_point_spacing)
+
+        # 2.
+        max_width = self._get_max_possible_width()
+        width = int(max_width + 1) #this will completely overshoot but that's probably okay
+        lines = get_cross_section_lines_from_points(self.flowline, points, width)
+        lines = lines.clip(self.polygon)
+        lines = lines.explode(index_parts=False)
+        lines = lines.loc[lines.intersects(self.flowline.buffer(1))]
+
+        # TODO: sometime flowline is outside of polygon slightly
+        self.cross_sections_lines = lines
+
+
+        xs_points['point_id'] = np.arange(len(xs_points))
+        for data_layer in self.dataset.data_vars:
+            xs_points[data_layer] = rioxarray_sample_points(self.dataset[data_layer], xs_points)
+        xs_points = xs_points.loc[~xs_points['elevation'].isna()]
+        xs_points = xs_points.loc[~xs_points['slope'].isna()]
+        self.cross_sections_df = xs_points
+        return
     
     def sample_cross_section_points(self, tolerance, xs_spacing, xs_width, xs_point_spacing):
         self._preprocess_flowline(tolerance)
@@ -127,7 +195,7 @@ class ValleyExtractor:
             polygon = polygon.buffer(1)  # cleans up multipolygon that is just an artefact of the raster to vector
             polygon = close_holes(polygon)
 
-            self.valley_floor_polygon = polygon
+            self.valley_floor_polygon = polygon.iloc[0]
 
         if len(polygons) == 1:
             self.valley_floor_polygon = polygons['geometry'].iloc[0]
@@ -158,43 +226,47 @@ class ValleyExtractor:
         values = values.where(values != 1, self.subbasin_id)
         return values
 
-    def _get_max_width(self):
-        # better ways to constrain width but this will do
-        values = self.dataset['hand']
-        values = values.where(np.isnan(values), 1)
-        values = values.astype(np.uint8)
-
-        polygon = polygonize_feature(values, 1)[0]
-        box = polygon.minimum_rotated_rectangle
-        x, y = box.exterior.coords.xy
-        edge_lengths = (Point(x[0], y[0]).distance(Point(x[1], y[1])), Point(x[1], y[1]).distance(Point(x[2], y[2])))
-        length = max(edge_lengths)
-        length = int(length) + 1
-        return length
-
-    def run(self, tolerance=20, xs_spacing=20,
+    def run(self, smooth=True, tolerance=20, xs_spacing=20,
                                                   xs_width=500, xs_point_spacing=10,
                                                   quantile=0.7, buffer=0, 
                                                   slope_threshold=None, peak_threshold=0.002, bp_slope_threshold=20):
-        self.sample_cross_section_points(tolerance=tolerance, xs_spacing=xs_spacing, 
-                                         xs_width=xs_width, xs_point_spacing=xs_point_spacing)
+
+        NOT_ENOUGH_WALLS = False
+        self.get_cross_section_data(tolerance=tolerance, smooth=smooth, xs_spacing=xs_spacing, xs_width=xs_width, xs_point_spacing=xs_point_spacing)
         self.find_breakpoints(peak_threshold=peak_threshold, bp_slope_threshold=bp_slope_threshold)
 
         # if not enough breakpoints: rerun with xs_width == max width of subbasin
         if len(self.break_points_df) < 5:
-            new_xs_width = self._get_max_width()
-            self.sample_cross_section_points(tolerance=tolerance, xs_spacing=xs_spacing, xs_width=new_xs_width, xs_point_spacing=xs_point_spacing)
+            new_xs_width = int(self._get_max_possible_width() + 1)
+            self.get_cross_section_data(tolerance=tolerance, smooth=smooth, xs_spacing=xs_spacing, xs_width=new_xs_width, xs_point_spacing=xs_point_spacing)
             self.find_breakpoints(peak_threshold=peak_threshold, bp_slope_threshold=bp_slope_threshold)
 
             # if still not enough
             if len(self.break_points_df) < 5:
-                #self.hand_threshold = self.cross_sections_df['hand'].max()
-                self.hand_threshold = self.dataset['hand'].max().values.item()
-                # at some point this needs to become the highest HAND value in the explored area not of the entire subbasin. where explered area is the area created by the cross sections interecting the subbasin
+                # self.hand_threshold = self.dataset['hand'].max().values.item()
+                points = []
+                for line in self.cross_sections_lines['geometry']:
+                    start = Point(line.coords[0])
+                    end = Point(line.coords[-1])
+                    points.append(start)
+                    points.append(end)
+
+                points = MultiPoint(points)
+                polygon = points.convex_hull
+                polygon = gpd.GeoSeries(polygon).clip(self.polygon)
+                NOT_ENOUGH_WALLS = True
+
             else:
                 self.determine_hand_threshold(quantile, buffer)
         else:
             self.determine_hand_threshold(quantile, buffer)
             
-        self.delineate_valley_floor(slope_threshold=slope_threshold)
+        if not NOT_ENOUGH_WALLS:
+            self.delineate_valley_floor(slope_threshold=slope_threshold)
+        else:
+            print("no walls found by cross sections")
+            self.hand_threshold = None
+            self.valley_floor_polygon = polygon
+            # alteranatively set threshold based on quantile of HAND values of boundary points?
+            # still need to apply slope threshold and clip better
         return
