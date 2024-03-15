@@ -85,6 +85,7 @@ def setup(dem_file, flowlines_file, config_file, wbt_path, terrain_dir, ofile):
 
 def delineate_valleys(watershed,
                       debug_flag=False,
+                      smooth=True,
                      tolerance=20,
                      xs_spacing=50,
                      xs_width = 500,
@@ -99,14 +100,15 @@ def delineate_valleys(watershed,
     if debug_flag:
         debug = [] # list of breakpoint dfs
     results = []
-    redo = []
     for sid in watershed.get_subbasin_ids():
+        print(sid)
         subbasin_data, flowline = watershed.clip_to_subbasin(sid)
         subbasin_data = prep_dataset(subbasin_data)
 
         ve = ValleyExtractor(subbasin_data, flowline, sid)
         ve.run(
                 tolerance=tolerance,
+                smooth= smooth,
                 xs_spacing=xs_spacing,
                 xs_width = xs_width,
                 xs_point_spacing = xs_point_spacing,
