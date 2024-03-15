@@ -26,7 +26,7 @@ from shapelysmooth import chaikin_smooth
 
 from pyvalleys.gis import rioxarray_sample_points
 
-def get_flowline_centerline(polygon, flowline, flow_acc, num_points=800, smooth=True, snapped=False):
+def get_flowline_centerline(polygon, flowline, flow_acc, num_points=3000, smooth=True, snapped=False):
     start, end = get_inlet_and_outlet_points(flowline, flow_acc)
 
     # check distance between start,end and polygon boundary
@@ -49,6 +49,11 @@ def get_flowline_centerline(polygon, flowline, flow_acc, num_points=800, smooth=
         centerline = chaikin_smooth(taubin_smooth(path))
     else:
         centerline = path
+
+    # check to make sure it worked?
+    distances = centerline.distance(gpd.GeoSeries([start,end]))
+    
+
     return centerline
 
 def get_centerline(polygon, num_points, smooth=True):
