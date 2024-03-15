@@ -1,7 +1,7 @@
 import rasterio
 from rasterio import features
 import xarray as xr
-from shapely.geometry import shape, Polygon
+from shapely.geometry import shape, Polygon, Point
 
 def rioxarray_sample_points(raster, points, method='nearest'):
     xs = xr.DataArray(points.geometry.x.values, dims='z')
@@ -35,3 +35,17 @@ def chomp_raster(raster):
     raster = raster.dropna(dim='x', how='all')
     raster = raster.dropna(dim='y', how='all')
     return raster
+
+def get_length_and_width(polygon):
+    box = polygon.minimum_rotated_rectangle
+    x, y = box.exterior.coords.xy
+    edge_lengths = (Point(x[0], y[0]).distance(Point(x[1], y[1])), Point(x[1], y[1]).distance(Point(x[2], y[2])))
+    return edge_lengths
+
+def get_points_on_linestring(linestring, spacing):
+    points = []
+    for i in range(0, int(linestring.length), spacing):
+        point = linestring.interpolate(i)
+        points.append(point)
+    points.append(Point(linestring.coords[-1]))
+    return points
