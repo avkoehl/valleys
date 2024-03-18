@@ -195,7 +195,8 @@ class ValleyExtractor:
             polygon = polygon.buffer(1)  # cleans up multipolygon that is just an artefact of the raster to vector
             polygon = close_holes(polygon)
 
-            self.valley_floor_polygon = polygon.iloc[0]
+            #self.valley_floor_polygon = polygon.iloc[0]
+            self.valley_floor_polygon = polygon
 
         if len(polygons) == 1:
             self.valley_floor_polygon = polygons['geometry'].iloc[0]
